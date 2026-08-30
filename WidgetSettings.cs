@@ -5,6 +5,12 @@ namespace SpotifyTaskbarWidget;
 
 public class WidgetSettings
 {
+    public const int HotkeyCtrl = 1;
+    public const int HotkeyAlt = 2;
+    public const int HotkeyShift = 4;
+    public const int HotkeyWin = 8;
+    public const int HotkeyCapsLock = 16;
+
     /// <summary>Kept for older versions - <see cref="ManualX"/> is what counts today.</summary>
     public bool AutoPosition { get; set; } = true;
 
@@ -44,6 +50,10 @@ public class WidgetSettings
 
     /// <summary>With Spotify closed: true shows an "Open Spotify" button; false hides the widget.</summary>
     public bool ShowLauncher { get; set; } = false;
+
+    /// <summary>Global shortcut that toggles the widget between the taskbar and a floating window.</summary>
+    public int HotkeyKey { get; set; } = 0x53; // S
+    public int HotkeyModifiers { get; set; } = HotkeyCapsLock;
 
     /// <summary>Interface language: "en", "pt", "ru", "uk", or empty to follow
     /// the Windows one.</summary>
@@ -121,6 +131,11 @@ public class WidgetSettings
         // invisible with no way to click it back
         s.Opacity = Math.Clamp(s.Opacity, 0.2, 1.0);
         s.TextPadding = Math.Clamp(s.TextPadding, 0, 40);
+        if (s.HotkeyKey is < 1 or > 255 || (s.HotkeyModifiers &= 31) == 0)
+        {
+            s.HotkeyKey = 0x53;
+            s.HotkeyModifiers = HotkeyCapsLock;
+        }
         return s;
     }
 

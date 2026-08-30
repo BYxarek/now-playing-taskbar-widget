@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -53,6 +54,11 @@ public partial class MainWindow : Window
     private static readonly List<MainWindow> Instances = new();
     private static bool _updateCheckStarted;
     private static bool _recreatePending;
+    private static IntPtr _keyboardHook;
+    private static Interop.LowLevelKeyboardProc? _keyboardProc;
+    private static bool _hotkeyDown;
+    private static bool _capsHotkeyUsed;
+    private static bool _capturingHotkey;
 
     // Update available (shared by every window): the silent check stores it
     // here and each window highlights its own menu item
@@ -179,6 +185,201 @@ public partial class MainWindow : Window
         // Do not steal focus on click and do not show up in Alt+Tab
         int ex = Interop.GetWindowLong(_hwnd, Interop.GWL_EXSTYLE);
         Interop.SetWindowLong(_hwnd, Interop.GWL_EXSTYLE, ex | Interop.WS_EX_TOOLWINDOW | Interop.WS_EX_NOACTIVATE);
+        EnsureKeyboardHook();
+    }
+
+    private static void EnsureKeyboardHook()
+    {
+        if (_keyboardHook != IntPtr.Zero) return;
+        _keyboardProc = (code, message, data) =>
+        {
+            if (code < 0)
+                return Interop.CallNextHookEx(_keyboardHook, code, message, data);
+            var key = Marshal.PtrToStructure<Interop.KBDLLHOOKSTRUCT>(data);
+            int msg = message.ToInt32();
+            bool down = msg is Interop.WM_KEYDOWN or Interop.WM_SYSKEYDOWN;
+            bool up = msg is Interop.WM_KEYUP or Interop.WM_SYSKEYUP;
+            var settings = WidgetSettings.Shared;
+
+            if (!_capturingHotkey && key.vkCode == settings.HotkeyKey &&
+                (HotkeyModifiersDown(settings.HotkeyModifiers) || _hotkeyDown))
+            {
+                if (down && !_hotkeyDown)
+                {
+                    _hotkeyDown = true;
+                    _capsHotkeyUsed = (settings.HotkeyModifiers & WidgetSettings.HotkeyCapsLock) != 0;
+                    Application.Current.Dispatcher.BeginInvoke(ToggleFloatingMode);
+                }
+                if (up) _hotkeyDown = false;
+                return new IntPtr(1); // do not type the shortcut key into the active application
+            }
+
+            if (key.vkCode == Interop.VK_CAPITAL && up && _capsHotkeyUsed)
+            {
+                _capsHotkeyUsed = false;
+                Application.Current.Dispatcher.BeginInvoke(() =>
+                {
+                    Interop.keybd_event((byte)Interop.VK_CAPITAL, 0, 0, UIntPtr.Zero);
+                    Interop.keybd_event((byte)Interop.VK_CAPITAL, 0, Interop.KEYEVENTF_KEYUP, UIntPtr.Zero);
+                });
+            }
+            return Interop.CallNextHookEx(_keyboardHook, code, message, data);
+        };
+        _keyboardHook = Interop.SetWindowsHookEx(Interop.WH_KEYBOARD_LL, _keyboardProc,
+            Interop.GetModuleHandle(null), 0);
+        if (_keyboardHook == IntPtr.Zero)
+            Diag.Log("Global hotkey could not be registered.");
+    }
+
+    private static bool HotkeyModifiersDown(int modifiers)
+    {
+        static bool Down(int key) => (Interop.GetAsyncKeyState(key) & 0x8000) != 0;
+        return ((modifiers & WidgetSettings.HotkeyCtrl) == 0 || Down(Interop.VK_CONTROL))
+            && ((modifiers & WidgetSettings.HotkeyAlt) == 0 || Down(Interop.VK_MENU))
+            && ((modifiers & WidgetSettings.HotkeyShift) == 0 || Down(Interop.VK_SHIFT))
+            && ((modifiers & WidgetSettings.HotkeyWin) == 0 || Down(Interop.VK_LWIN) || Down(Interop.VK_RWIN))
+            && ((modifiers & WidgetSettings.HotkeyCapsLock) == 0 || Down((int)Interop.VK_CAPITAL));
+    }
+
+    public static string CurrentHotkeyText()
+    {
+        var settings = WidgetSettings.Shared;
+        return FormatHotkey(settings.HotkeyKey, settings.HotkeyModifiers);
+    }
+
+    private static string FormatHotkey(int keyCode, int modifiers)
+    {
+        var parts = new List<string>();
+        if ((modifiers & WidgetSettings.HotkeyCtrl) != 0) parts.Add("Ctrl");
+        if ((modifiers & WidgetSettings.HotkeyAlt) != 0) parts.Add("Alt");
+        if ((modifiers & WidgetSettings.HotkeyShift) != 0) parts.Add("Shift");
+        if ((modifiers & WidgetSettings.HotkeyWin) != 0) parts.Add("Win");
+        if ((modifiers & WidgetSettings.HotkeyCapsLock) != 0) parts.Add("Caps Lock");
+        Key key = KeyInterop.KeyFromVirtualKey(keyCode);
+        parts.Add(key is >= Key.D0 and <= Key.D9 ? ((int)key - (int)Key.D0).ToString() : key.ToString());
+        return string.Join(" + ", parts);
+    }
+
+    public static void ChangeHotkey()
+    {
+        var settings = WidgetSettings.Shared;
+        int chosenKey = settings.HotkeyKey;
+        int chosenModifiers = settings.HotkeyModifiers;
+        bool capsBefore = Keyboard.IsKeyToggled(Key.CapsLock);
+
+        var status = new TextBlock
+        {
+            Text = L.HotkeyPrompt,
+            FontSize = 16,
+            TextAlignment = TextAlignment.Center,
+            Margin = new Thickness(20),
+        };
+        var save = new Button { Content = L.Save, IsEnabled = false, MinWidth = 90, Margin = new Thickness(5) };
+        var cancel = new Button { Content = L.Cancel, MinWidth = 90, Margin = new Thickness(5) };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
+        buttons.Children.Add(save);
+        buttons.Children.Add(cancel);
+        var content = new StackPanel();
+        content.Children.Add(status);
+        content.Children.Add(buttons);
+        var dialog = new Window
+        {
+            Title = L.HotkeyTitle,
+            Content = content,
+            SizeToContent = SizeToContent.WidthAndHeight,
+            ResizeMode = ResizeMode.NoResize,
+            WindowStartupLocation = WindowStartupLocation.CenterScreen,
+            Topmost = true,
+        };
+
+        dialog.PreviewKeyDown += (_, args) =>
+        {
+            Key key = args.Key == Key.System ? args.SystemKey : args.Key;
+            if (key is Key.LeftCtrl or Key.RightCtrl or Key.LeftAlt or Key.RightAlt or
+                Key.LeftShift or Key.RightShift or Key.LWin or Key.RWin or Key.CapsLock)
+            {
+                args.Handled = true;
+                return;
+            }
+
+            int modifiers = 0;
+            if ((Keyboard.Modifiers & ModifierKeys.Control) != 0) modifiers |= WidgetSettings.HotkeyCtrl;
+            if ((Keyboard.Modifiers & ModifierKeys.Alt) != 0) modifiers |= WidgetSettings.HotkeyAlt;
+            if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0) modifiers |= WidgetSettings.HotkeyShift;
+            if ((Keyboard.Modifiers & ModifierKeys.Windows) != 0) modifiers |= WidgetSettings.HotkeyWin;
+            if ((Interop.GetAsyncKeyState((int)Interop.VK_CAPITAL) & 0x8000) != 0) modifiers |= WidgetSettings.HotkeyCapsLock;
+            if (modifiers == 0)
+            {
+                status.Text = L.HotkeyNeedModifier;
+                save.IsEnabled = false;
+            }
+            else
+            {
+                chosenKey = KeyInterop.VirtualKeyFromKey(key);
+                chosenModifiers = modifiers;
+                status.Text = FormatHotkey(chosenKey, chosenModifiers);
+                save.IsEnabled = true;
+            }
+            args.Handled = true;
+        };
+        save.Click += (_, _) =>
+        {
+            settings.HotkeyKey = chosenKey;
+            settings.HotkeyModifiers = chosenModifiers;
+            settings.Save();
+            dialog.DialogResult = true;
+        };
+        cancel.Click += (_, _) => dialog.DialogResult = false;
+
+        _capturingHotkey = true;
+        try { dialog.ShowDialog(); }
+        finally
+        {
+            _capturingHotkey = false;
+            if (Keyboard.IsKeyToggled(Key.CapsLock) != capsBefore)
+            {
+                Interop.keybd_event((byte)Interop.VK_CAPITAL, 0, 0, UIntPtr.Zero);
+                Interop.keybd_event((byte)Interop.VK_CAPITAL, 0, Interop.KEYEVENTF_KEYUP, UIntPtr.Zero);
+            }
+        }
+    }
+
+    private static void ToggleFloatingMode()
+    {
+        bool floating = !Instances.Any(w => w._floating);
+        foreach (var window in Instances.ToList())
+            window.SetFloating(floating);
+    }
+
+    private bool _floating;
+
+    private void SetFloating(bool floating)
+    {
+        _floating = floating;
+        CancelRide();
+        if (floating)
+        {
+            Interop.SetWindowLongPtr(_hwnd, Interop.GWLP_HWNDPARENT, IntPtr.Zero);
+            _ownerTray = IntPtr.Zero;
+            UpdateLayout();
+            if (Interop.GetWindowRect(_hwnd, out var window) &&
+                Interop.GetWorkArea(_hwnd, out var area))
+            {
+                int width = window.Right - window.Left;
+                int height = window.Bottom - window.Top;
+                Interop.ClipWindowBottom(_hwnd, width, height, height);
+                Interop.MoveWindowTo(_hwnd,
+                    area.Left + (area.Right - area.Left - width) / 2,
+                    area.Top + (area.Bottom - area.Top - height) / 2);
+            }
+            Visibility = Visibility.Visible;
+            ReassertTopmost();
+        }
+        else
+        {
+            _ownerTray = IntPtr.Zero;
+            UpdatePosition();
+        }
     }
 
     /// <summary>Applies the strings in the selected language.</summary>
@@ -489,6 +690,12 @@ public partial class MainWindow : Window
         if (_closed)
             return; // a late dispatch on a closed window: without this it could
                     // re-register hooks on a dead hwnd (crash in a GC'd callback)
+        if (_floating)
+        {
+            if (Visibility != Visibility.Visible) Visibility = Visibility.Visible;
+            ReassertTopmost();
+            return;
+        }
         IntPtr tray = GetTargetTray();
         if (tray == IntPtr.Zero || !Interop.GetWindowRect(tray, out var r))
         {
@@ -2465,7 +2672,15 @@ public partial class MainWindow : Window
         // Last window closed (e.g. an Explorer restart): reopen the door to the
         // update check, so the recreated widget checks again
         if (Instances.Count == 0)
+        {
             _updateCheckStarted = false;
+            if (_keyboardHook != IntPtr.Zero)
+            {
+                Interop.UnhookWindowsHookEx(_keyboardHook);
+                _keyboardHook = IntPtr.Zero;
+                _keyboardProc = null;
+            }
+        }
         if (!App.IntentionalExit && !ClosedByApp && !_recreatePending)
         {
             // Explorer restarted and took the windows with it (they are owned by

@@ -176,9 +176,43 @@ internal static class Interop
     }
 
     public const byte VK_SHIFT = 0x10;
+    public const byte VK_CONTROL = 0x11;
     public const byte VK_MENU = 0x12;
+    public const uint VK_CAPITAL = 0x14;
+    public const byte VK_LWIN = 0x5B;
+    public const byte VK_RWIN = 0x5C;
     public const byte VK_B = 0x42;
     public const uint KEYEVENTF_KEYUP = 0x0002;
+
+    public const int WH_KEYBOARD_LL = 13;
+    public const int WM_KEYDOWN = 0x0100;
+    public const int WM_KEYUP = 0x0101;
+    public const int WM_SYSKEYDOWN = 0x0104;
+    public const int WM_SYSKEYUP = 0x0105;
+    [StructLayout(LayoutKind.Sequential)]
+    public struct KBDLLHOOKSTRUCT
+    {
+        public uint vkCode, scanCode, flags, time;
+        public UIntPtr dwExtraInfo;
+    }
+
+    public delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc callback,
+        IntPtr module, uint threadId);
+
+    [DllImport("user32.dll")]
+    public static extern bool UnhookWindowsHookEx(IntPtr hook);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr CallNextHookEx(IntPtr hook, int nCode, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    public static extern short GetAsyncKeyState(int key);
+
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+    public static extern IntPtr GetModuleHandle(string? moduleName);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetClassName(IntPtr hWnd, StringBuilder lpClassName, int nMaxCount);
@@ -231,6 +265,14 @@ internal static class Interop
     /// avoids the wrong DIP maths between monitors with different scaling.</summary>
     public static void MoveWindowTo(IntPtr hwnd, int xPx, int yPx) =>
         SetWindowPos(hwnd, IntPtr.Zero, xPx, yPx, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+
+    public static bool GetWorkArea(IntPtr hwnd, out RECT workArea)
+    {
+        var mi = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+        bool ok = GetMonitorInfo(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), ref mi);
+        workArea = mi.rcWork;
+        return ok;
+    }
 
     [DllImport("user32.dll")]
     public static extern uint GetDpiForWindow(IntPtr hWnd);

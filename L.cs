@@ -37,6 +37,22 @@ internal static class L
 
     public const string AppTitle = "Taskbar Widget for Spotify";
 
+    public static string TrayCurrent(string hotkey) => Pick(
+        $"Current shortcut: {hotkey}", $"Atalho atual: {hotkey}",
+        $"Текущая комбинация: {hotkey}", $"Поточна комбінація: {hotkey}");
+    public static string TrayChangeHotkey => Pick(
+        "Change shortcut…", "Alterar atalho…", "Изменить комбинацию…", "Змінити комбінацію…");
+    public static string TrayExit => Pick("Exit", "Sair", "Закрыть", "Закрити");
+    public static string HotkeyTitle => Pick(
+        "Change shortcut", "Alterar atalho", "Смена комбинации", "Зміна комбінації");
+    public static string HotkeyPrompt => Pick(
+        "Hold a modifier and press a key", "Segure um modificador e pressione uma tecla",
+        "Зажмите модификатор и нажмите клавишу", "Затисніть модифікатор і натисніть клавішу");
+    public static string HotkeyNeedModifier => Pick(
+        "Add Ctrl, Alt, Shift, Win or Caps Lock", "Adicione Ctrl, Alt, Shift, Win ou Caps Lock",
+        "Добавьте Ctrl, Alt, Shift, Win или Caps Lock", "Додайте Ctrl, Alt, Shift, Win або Caps Lock");
+    public static string Save => Pick("Save", "Guardar", "Сохранить", "Зберегти");
+
     // Language
     public static string LanguageMenu => Pick("Language", "Idioma", "Язык", "Мова");
     public static string LanguageAuto => Pick(
