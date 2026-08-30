@@ -2508,45 +2508,60 @@ public partial class MainWindow : Window
 
     private async Task InitStartupTaskStateAsync()
     {
-        try
-        {
-            var task = await Windows.ApplicationModel.StartupTask.GetAsync(StartupTaskId);
-            AutoStartMenu.IsChecked = task.State is Windows.ApplicationModel.StartupTaskState.Enabled
-                or Windows.ApplicationModel.StartupTaskState.EnabledByPolicy;
-        }
-        catch { }
+        AutoStartMenu.IsChecked = await GetAutoStartEnabledAsync();
     }
 
     private async void AutoStart_Click(object sender, RoutedEventArgs e)
+    {
+        AutoStartMenu.IsChecked = await SetAutoStartEnabledAsync(AutoStartMenu.IsChecked);
+    }
+
+    public static async Task<bool> GetAutoStartEnabledAsync()
     {
         if (PackagedApp.IsPackaged)
         {
             try
             {
                 var task = await Windows.ApplicationModel.StartupTask.GetAsync(StartupTaskId);
-                if (AutoStartMenu.IsChecked)
-                {
-                    var state = await task.RequestEnableAsync();
-                    AutoStartMenu.IsChecked = state == Windows.ApplicationModel.StartupTaskState.Enabled;
-                }
+                return task.State is Windows.ApplicationModel.StartupTaskState.Enabled
+                    or Windows.ApplicationModel.StartupTaskState.EnabledByPolicy;
+            }
+            catch { return false; }
+        }
+        return IsAutoStartEnabled();
+    }
+
+    public static async Task<bool> SetAutoStartEnabledAsync(bool enabled)
+    {
+        if (PackagedApp.IsPackaged)
+        {
+            try
+            {
+                var task = await Windows.ApplicationModel.StartupTask.GetAsync(StartupTaskId);
+                if (enabled)
+                    await task.RequestEnableAsync();
                 else
-                {
                     task.Disable();
-                }
             }
             catch { }
-            return;
+        }
+        else
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath);
+                if (enabled)
+                    key.SetValue(RunValueName, $"\"{Environment.ProcessPath}\"");
+                else
+                    key.DeleteValue(RunValueName, false);
+            }
+            catch { }
         }
 
-        try
-        {
-            using var key = Registry.CurrentUser.CreateSubKey(RunKeyPath);
-            if (AutoStartMenu.IsChecked)
-                key.SetValue(RunValueName, $"\"{Environment.ProcessPath}\"");
-            else
-                key.DeleteValue(RunValueName, false);
-        }
-        catch { }
+        bool actual = await GetAutoStartEnabledAsync();
+        foreach (var window in Instances)
+            window.AutoStartMenu.IsChecked = actual;
+        return actual;
     }
 
     private static bool IsAutoStartEnabled()

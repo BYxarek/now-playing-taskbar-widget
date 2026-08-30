@@ -11,6 +11,7 @@ public partial class App : Application
     private Forms.ContextMenuStrip? _trayMenu;
     private Forms.ToolStripMenuItem? _currentHotkeyItem;
     private Forms.ToolStripMenuItem? _changeHotkeyItem;
+    private Forms.ToolStripMenuItem? _autoStartItem;
     private Forms.ToolStripMenuItem? _exitItem;
 
     /// <summary>True only when the user quit on purpose (or an update);
@@ -64,8 +65,15 @@ public partial class App : Application
     {
         _currentHotkeyItem = new Forms.ToolStripMenuItem { Enabled = false };
         _changeHotkeyItem = new Forms.ToolStripMenuItem();
+        _autoStartItem = new Forms.ToolStripMenuItem();
         _exitItem = new Forms.ToolStripMenuItem();
         _changeHotkeyItem.Click += (_, _) => Dispatcher.Invoke(SpotifyTaskbarWidget.MainWindow.ChangeHotkey);
+        _autoStartItem.Click += async (_, _) =>
+        {
+            _autoStartItem.Enabled = false;
+            _autoStartItem.Checked = await SpotifyTaskbarWidget.MainWindow.SetAutoStartEnabledAsync(!_autoStartItem.Checked);
+            _autoStartItem.Enabled = true;
+        };
         _exitItem.Click += (_, _) => Dispatcher.Invoke(() =>
         {
             IntentionalExit = true;
@@ -75,6 +83,7 @@ public partial class App : Application
         _trayMenu = new Forms.ContextMenuStrip();
         _trayMenu.Items.Add(_currentHotkeyItem);
         _trayMenu.Items.Add(_changeHotkeyItem);
+        _trayMenu.Items.Add(_autoStartItem);
         _trayMenu.Items.Add(new Forms.ToolStripSeparator());
         _trayMenu.Items.Add(_exitItem);
         _trayMenu.Opening += (_, _) => RefreshTrayMenu();
@@ -90,19 +99,27 @@ public partial class App : Application
         _trayIcon.MouseUp += (_, args) =>
         {
             if (args.Button == Forms.MouseButtons.Left)
-            {
-                RefreshTrayMenu();
                 _trayMenu.Show(Forms.Control.MousePosition);
-            }
         };
     }
 
     private void RefreshTrayMenu()
     {
-        if (_currentHotkeyItem == null || _changeHotkeyItem == null || _exitItem == null) return;
+        if (_currentHotkeyItem == null || _changeHotkeyItem == null ||
+            _autoStartItem == null || _exitItem == null) return;
         _currentHotkeyItem.Text = L.TrayCurrent(SpotifyTaskbarWidget.MainWindow.CurrentHotkeyText());
         _changeHotkeyItem.Text = L.TrayChangeHotkey;
+        _autoStartItem.Text = L.AutoStart;
+        _ = RefreshAutoStartItemAsync();
         _exitItem.Text = L.TrayExit;
+    }
+
+    private async Task RefreshAutoStartItemAsync()
+    {
+        if (_autoStartItem == null) return;
+        _autoStartItem.Enabled = false;
+        _autoStartItem.Checked = await SpotifyTaskbarWidget.MainWindow.GetAutoStartEnabledAsync();
+        _autoStartItem.Enabled = true;
     }
 
     protected override void OnExit(ExitEventArgs e)
