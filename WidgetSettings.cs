@@ -29,6 +29,10 @@ public class WidgetSettings
     /// area cannot be read.</summary>
     public Dictionary<int, double> ManualGap { get; set; } = new();
 
+    /// <summary>Last floating-window position (physical px) per widget.</summary>
+    public Dictionary<int, double> FloatingX { get; set; } = new();
+    public Dictionary<int, double> FloatingY { get; set; } = new();
+
     /// <summary>Font for title/artist. Empty = the system one (whatever the XAML
     /// inherits) - stored by name so it survives a settings file copied to
     /// another machine without that font installed.</summary>
@@ -117,6 +121,8 @@ public class WidgetSettings
             if (s.Monitors is null) s.Monitors = new List<int>();
             if (s.ManualX is null) s.ManualX = new Dictionary<int, double>();
             if (s.ManualGap is null) s.ManualGap = new Dictionary<int, double>();
+            if (s.FloatingX is null) s.FloatingX = new Dictionary<int, double>();
+            if (s.FloatingY is null) s.FloatingY = new Dictionary<int, double>();
         }
         catch
         {

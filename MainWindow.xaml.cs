@@ -98,10 +98,12 @@ public partial class MainWindow : Window
     private IntPtr _hwnd;
     private bool _moveMode;
     private bool _dragging;
+    private bool _floatingDrag;
     private bool _dragMoved;
     private bool _pressed;
     private Point _dragStartScreen;
     private double _dragStartLeft;
+    private double _dragStartTop;
 
     private string _lastTrackKey = "";
     private bool _artDirty = true;
@@ -357,6 +359,13 @@ public partial class MainWindow : Window
     {
         _floating = floating;
         CancelRide();
+        Root.Background = floating
+            ? new SolidColorBrush(Color.FromArgb(0xF2, 0x18, 0x18, 0x18))
+            : new SolidColorBrush(Color.FromArgb(1, 0, 0, 0));
+        Root.BorderBrush = floating
+            ? new SolidColorBrush(Color.FromArgb(0x66, 0xFF, 0xFF, 0xFF))
+            : Brushes.Transparent;
+        Root.BorderThickness = floating ? new Thickness(1) : new Thickness(0);
         if (floating)
         {
             Interop.SetWindowLongPtr(_hwnd, Interop.GWLP_HWNDPARENT, IntPtr.Zero);
@@ -368,9 +377,13 @@ public partial class MainWindow : Window
                 int width = window.Right - window.Left;
                 int height = window.Bottom - window.Top;
                 Interop.ClipWindowBottom(_hwnd, width, height, height);
+                double x = 0, y = 0;
+                bool saved = _settings.FloatingX.TryGetValue(TrayIndex, out x)
+                    && _settings.FloatingY.TryGetValue(TrayIndex, out y)
+                    && double.IsFinite(x) && double.IsFinite(y);
                 Interop.MoveWindowTo(_hwnd,
-                    area.Left + (area.Right - area.Left - width) / 2,
-                    area.Top + (area.Bottom - area.Top - height) / 2);
+                    saved ? (int)Math.Round(x) : area.Left + (area.Right - area.Left - width) / 2,
+                    saved ? (int)Math.Round(y) : area.Top + (area.Bottom - area.Top - height) / 2);
             }
             Visibility = Visibility.Visible;
             ReassertTopmost();
@@ -468,6 +481,7 @@ public partial class MainWindow : Window
             if (_dragging)
             {
                 _dragging = false;
+                _floatingDrag = false;
                 _dragMoved = false;
             }
         };
@@ -2029,6 +2043,17 @@ public partial class MainWindow : Window
 
         Point cur = PointToScreen(e.GetPosition(this));
         double dxDevice = cur.X - _dragStartScreen.X;
+        double dyDevice = cur.Y - _dragStartScreen.Y;
+
+        if (_floatingDrag)
+        {
+            if (Math.Abs(dxDevice) > 3 || Math.Abs(dyDevice) > 3) _dragMoved = true;
+            if (_dragMoved)
+                Interop.MoveWindowTo(_hwnd,
+                    (int)Math.Round(_dragStartLeft + dxDevice),
+                    (int)Math.Round(_dragStartTop + dyDevice));
+            return;
+        }
 
         var source = PresentationSource.FromVisual(this);
         if (source?.CompositionTarget == null) return;
@@ -2072,6 +2097,35 @@ public partial class MainWindow : Window
         {
             _pressed = false;
             SpotifyActions.OpenSpotifyWindow();
+        }
+    }
+
+    private void Root_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (!_floating || !Interop.GetWindowRect(_hwnd, out var window)) return;
+        _floatingDrag = true;
+        _dragging = true;
+        _dragMoved = false;
+        _dragStartLeft = window.Left;
+        _dragStartTop = window.Top;
+        _dragStartScreen = PointToScreen(e.GetPosition(this));
+        Root.CaptureMouse();
+    }
+
+    private void Root_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_floatingDrag) return;
+        _floatingDrag = false;
+        _dragging = false;
+        Root.ReleaseMouseCapture();
+        if (!_dragMoved) return; // preserve the normal right-click context menu
+
+        e.Handled = true;
+        if (Interop.GetWindowRect(_hwnd, out var window))
+        {
+            _settings.FloatingX[TrayIndex] = window.Left;
+            _settings.FloatingY[TrayIndex] = window.Top;
+            _settings.Save();
         }
     }
 

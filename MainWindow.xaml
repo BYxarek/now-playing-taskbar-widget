@@ -220,8 +220,10 @@
     <!-- Almost transparent background (#01000000) so the mouse is detected (menu/move) -->
     <Border x:Name="Root" Background="#01000000" CornerRadius="8" Padding="8,2,8,0" Cursor="Hand"
             MouseLeftButtonDown="Root_MouseLeftButtonDown"
+            PreviewMouseRightButtonDown="Root_MouseRightButtonDown"
             MouseMove="Root_MouseMove"
             MouseLeftButtonUp="Root_MouseLeftButtonUp"
+            PreviewMouseRightButtonUp="Root_MouseRightButtonUp"
             ContextMenuOpening="Root_ContextMenuOpening">
         <Border.ContextMenu>
             <ContextMenu Closed="ContextMenu_Closed">

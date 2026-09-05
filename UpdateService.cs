@@ -21,7 +21,7 @@ internal static class UpdateService
     /// modified build (any-player support through SMTC): a GitHub update would
     /// silently replace the exe and undo those changes.
     /// Setting this to true turns everything below back on.</summary>
-    public const bool AutoUpdateEnabled = false;
+    public static readonly bool AutoUpdateEnabled = false;
 
     // GitHub "owner/repo" holding the releases. With "CHANGEME" the check is disabled.
     public const string GitHubRepo = "mechanicwb2-hub/spotify-taskbar-widget";
