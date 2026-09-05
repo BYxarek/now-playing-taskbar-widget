@@ -15,16 +15,17 @@ volume. Runs on Windows 10 and Windows 11.
 
 ## Install
 
+- **GitHub Releases:** download and run
+  [**SpotifyTaskbarWidget.exe**](https://github.com/BYxarek/now-playing-taskbar-widget/releases/latest).
+  It is a portable, self-contained Windows x64 build: no installer or separate
+  .NET installation is required.
 - **Microsoft Store (recommended — always the latest version):**
   [**Now Playing - Taskbar Widget**](https://apps.microsoft.com/detail/9p12tljzg2cj) —
   one-click install, automatic updates, works with Smart App Control enabled,
   and supports both Windows 10 (2004+) and Windows 11.
 - **winget** (pending review): `winget install MechanicWB.TaskbarWidgetForSpotify`
-- UI languages: English and Portuguese (follows your Windows language).
-
-> The Microsoft Store has the current release. The GitHub Releases here may lag
-> behind — if you want the newest version (universal player support, Windows 10),
-> install from the Store.
+- UI languages: English, Portuguese, Russian and Ukrainian (follows your Windows
+  language, or can be selected manually).
 
 ## How it works
 
@@ -49,6 +50,14 @@ volume. Runs on Windows 10 and Windows 11.
 
 ## Usage
 
+- **Floating player:** press `Caps Lock + S` to move the widget from the
+  taskbar onto the screen; press it again to return. The shortcut can be changed
+  from the tray menu. Floating mode adds a dark background and a visible border
+  so the player stays readable over other windows.
+- **Move the floating player:** hold the right mouse button anywhere on the
+  player and drag it horizontally or vertically. Its position is saved for each
+  monitor and restored the next time floating mode is opened. A normal right
+  click without dragging still opens the context menu.
 - **Position:** locked and automatic by default. To move it: right-click →
   *Move widget*, drag, and untick to lock it in the new spot. *Reset to
   automatic position* brings back auto alignment.
@@ -94,7 +103,7 @@ stays free.
 Something not working? See **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** — covers
 "nothing playing", antivirus flags, Smart App Control, positioning and more.
 Still stuck?
-[Open an issue](https://github.com/mechanicwb2-hub/now-playing-taskbar-widget/issues).
+[Open an issue](https://github.com/BYxarek/now-playing-taskbar-widget/issues).
 
 ## Support
 
@@ -103,17 +112,13 @@ Free and open source. If you find it useful, you can support development on
 
 ## Building
 
-Requires the .NET 8 SDK:
+Requires the .NET 10 SDK:
 
+```powershell
+dotnet publish SpotifyTaskbarWidget.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
 ```
-dotnet publish SpotifyTaskbarWidget.csproj -c Release -o publish
-```
 
-Produces a single `SpotifyTaskbarWidget.exe` (needs the .NET 8 Desktop Runtime;
-for a standalone exe, flip `SelfContained` to `true`).
-
-> Note: the latest release ships on the Microsoft Store; the source on this
-> branch may be behind the Store version.
+Produces a single standalone `SpotifyTaskbarWidget.exe` for Windows x64.
 
 ## Structure
 
