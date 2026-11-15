@@ -18,7 +18,7 @@
             ProcessorArchitecture="x64" />
 
   <Properties>
-    <DisplayName>Taskbar Widget for Spotify</DisplayName>
+    <DisplayName>Now Playing - Taskbar Widget</DisplayName>
     <PublisherDisplayName>MechanicWB</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
@@ -35,8 +35,8 @@
   <Applications>
     <Application Id="SpotifyTaskbarWidget" Executable="SpotifyTaskbarWidget.exe"
                  EntryPoint="Windows.FullTrustApplication">
-      <uap:VisualElements DisplayName="Taskbar Widget for Spotify"
-                          Description="Now-playing widget for Spotify embedded in the Windows 11 taskbar."
+      <uap:VisualElements DisplayName="Now Playing - Taskbar Widget"
+                          Description="A taskbar widget for your music."
                           BackgroundColor="transparent"
                           Square150x150Logo="Assets\Square150x150Logo.png"
                           Square44x44Logo="Assets\Square44x44Logo.png" />
@@ -44,7 +44,7 @@
         <uap5:Extension Category="windows.startupTask" Executable="SpotifyTaskbarWidget.exe"
                         EntryPoint="Windows.FullTrustApplication">
           <uap5:StartupTask TaskId="SpotifyTaskbarWidgetStartup" Enabled="false"
-                            DisplayName="Taskbar Widget for Spotify" />
+                            DisplayName="Now Playing - Taskbar Widget" />
         </uap5:Extension>
       </Extensions>
     </Application>

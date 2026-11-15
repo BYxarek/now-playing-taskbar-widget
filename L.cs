@@ -35,7 +35,7 @@ internal static class L
         _ => en,
     };
 
-    public const string AppTitle = "Taskbar Widget for Spotify";
+    public const string AppTitle = "Now Playing - Taskbar Widget";
 
     public static string TrayCurrent(string hotkey) => Pick(
         $"Current shortcut: {hotkey}", $"Atalho atual: {hotkey}",
@@ -154,6 +154,14 @@ internal static class L
         "Com o Spotify fechado, mostra um botão para o abrir em vez de esconder o widget",
         "Когда Spotify закрыт, показывать кнопку запуска вместо скрытия виджета",
         "Коли Spotify закрито, показувати кнопку запуску замість приховування віджета");
+    public static string OpenSpotifyOnRightClick => Pick(
+        "Open Spotify on right-click", "Abrir Spotify com o botão direito",
+        "Открывать Spotify правой кнопкой", "Відкривати Spotify правою кнопкою");
+    public static string OpenSpotifyOnRightClickTip => Pick(
+        "Left-click the player to open this menu when enabled",
+        "Quando ativado, clique no leitor com o botão esquerdo para abrir este menu",
+        "Когда настройка включена, меню открывается левой кнопкой",
+        "Коли налаштування ввімкнено, меню відкривається лівою кнопкою");
     public static string AutoStart => Pick(
         "Start with Windows", "Iniciar com o Windows",
         "Запускать вместе с Windows", "Запускати разом із Windows");

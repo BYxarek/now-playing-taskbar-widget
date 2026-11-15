@@ -4,6 +4,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
@@ -421,6 +422,8 @@ public partial class MainWindow : Window
         ScrollOnceMenu.Header = L.ScrollTitleOnce;
         LauncherMenu.Header = L.ShowLauncher;
         LauncherMenu.ToolTip = L.ShowLauncherTip;
+        RightClickSpotifyMenu.Header = L.OpenSpotifyOnRightClick;
+        RightClickSpotifyMenu.ToolTip = L.OpenSpotifyOnRightClickTip;
         AutoStartMenu.Header = L.AutoStart;
         OpenSpotifyMenu.Header = L.OpenSpotify;
         DonateMenu.Header = L.Donate;
@@ -434,7 +437,7 @@ public partial class MainWindow : Window
         RepeatButton.ToolTip = L.TipRepeat;
         ShuffleButton.ToolTip = L.TipShuffle;
         LikeButton.ToolTip = L.TipLikeAdd;
-        LauncherPanel.ToolTip = L.TipOpenSpotify;
+        LauncherPanel.ToolTip = _settings.OpenSpotifyOnRightClick ? L.OpenSpotifyOnRightClick : L.TipOpenSpotify;
         LauncherText.Text = L.OpenSpotify;
         // Placeholder only - with music playing the artist is on screen and
         // rewriting it here wiped it until the next refresh
@@ -451,6 +454,8 @@ public partial class MainWindow : Window
         _ = InitStartupTaskStateAsync();
         ApplyThemeIfChanged();
         RebuildMonitorMenu();
+        BuildLanguageMenu();
+        BuildFontMenu();
         ApplySettingsUi();
         // The settings are shared: when another window saves, re-apply them
         WidgetSettings.Changed += OnSettingsChanged;
@@ -547,6 +552,7 @@ public partial class MainWindow : Window
     private void ApplySettingsUi()
     {
         LauncherMenu.IsChecked = _settings.ShowLauncher;
+        RightClickSpotifyMenu.IsChecked = _settings.OpenSpotifyOnRightClick;
         ProgressMenu.IsChecked = _settings.ShowProgress;
         ScrollOnceMenu.IsChecked = _settings.ScrollTitleOnce;
         AutoSizeMenu.IsChecked = _settings.AutoSizeText;
@@ -561,10 +567,10 @@ public partial class MainWindow : Window
         ApplyScale();
         UpdateSizeChecks();
         ApplyLanguage();
-        BuildLanguageMenu();
+        UpdateLanguageChecks();
         ApplyArt();
         ApplyFont();
-        BuildFontMenu();
+        UpdateFontChecks();
         ApplyOpacity();
         UpdateOpacityChecks();
         UpdateTextPadChecks();
@@ -926,7 +932,7 @@ public partial class MainWindow : Window
         // windows cover the whole screen and would give false positives; visibility
         // already follows the bar); or Spotify closed with no launcher button.
         bool hide = (!Interop.IsAutoHideEnabled() && Interop.IsForegroundFullscreen(_hwnd, tray))
-                    || (!_spotifyPresent && !_settings.ShowLauncher);
+                    || (!_spotifyPresent && !_settings.ShowLauncher && Root.ContextMenu is not { IsOpen: true });
         if (hide)
         {
             _barWasHidden = false;
@@ -1877,7 +1883,9 @@ public partial class MainWindow : Window
 
     private IntPtr _fgBeforeUi;
 
-    private void Root_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+    private void Root_ContextMenuOpening(object sender, ContextMenuEventArgs e) => PrepareContextMenu();
+
+    private void PrepareContextMenu()
     {
         CaptureForeground();
         RebuildMonitorMenu();
@@ -1902,7 +1910,6 @@ public partial class MainWindow : Window
                 Header = i == 0 ? L.MonitorPrimary : L.MonitorN(i + 1),
                 IsCheckable = true,
                 IsChecked = monitors.Contains(i),
-                StaysOpenOnClick = true, // tick several without the menu closing
             };
             item.Click += (s, _) =>
             {
@@ -2035,12 +2042,29 @@ public partial class MainWindow : Window
                 }
                 _settings.Save();
             }
+            else if (_settings.OpenSpotifyOnRightClick)
+            {
+                OpenWidgetMenu();
+            }
         }
         else if (_pressed)
         {
             _pressed = false;
-            SpotifyActions.OpenSpotifyWindow();
+            if (_settings.OpenSpotifyOnRightClick)
+                OpenWidgetMenu();
+            else
+                SpotifyActions.OpenSpotifyWindow();
         }
+    }
+
+    private void OpenWidgetMenu(PlacementMode placement = PlacementMode.MousePoint)
+    {
+        var menu = Root.ContextMenu;
+        if (menu.IsOpen || !IsVisible) return;
+        PrepareContextMenu();
+        menu.PlacementTarget = Root;
+        menu.Placement = placement;
+        menu.IsOpen = true;
     }
 
     private void Root_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
@@ -2057,18 +2081,28 @@ public partial class MainWindow : Window
 
     private void Root_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
-        if (!_floatingDrag) return;
-        _floatingDrag = false;
-        _dragging = false;
-        Root.ReleaseMouseCapture();
-        if (!_dragMoved) return; // preserve the normal right-click context menu
-
-        e.Handled = true;
-        if (Interop.GetWindowRect(_hwnd, out var window))
+        if (_floatingDrag)
         {
-            _settings.FloatingX[TrayIndex] = window.Left;
-            _settings.FloatingY[TrayIndex] = window.Top;
-            _settings.Save();
+            _floatingDrag = false;
+            _dragging = false;
+            Root.ReleaseMouseCapture();
+            if (_dragMoved)
+            {
+                e.Handled = true;
+                if (Interop.GetWindowRect(_hwnd, out var window))
+                {
+                    _settings.FloatingX[TrayIndex] = window.Left;
+                    _settings.FloatingY[TrayIndex] = window.Top;
+                    _settings.Save();
+                }
+                return;
+            }
+        }
+
+        if (_settings.OpenSpotifyOnRightClick && Root.IsMouseOver)
+        {
+            e.Handled = true;
+            SpotifyActions.OpenSpotifyWindow();
         }
     }
 
@@ -2143,8 +2177,6 @@ public partial class MainWindow : Window
 
     private void BuildFontMenu()
     {
-        FontMenuItem.Items.Clear();
-
         var installed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         try
         {
@@ -2157,7 +2189,6 @@ public partial class MainWindow : Window
         {
             Header = L.FontSystem,
             IsCheckable = true,
-            IsChecked = string.IsNullOrWhiteSpace(_settings.FontFamily),
             Tag = "",
         };
         systemItem.Click += Font_Click;
@@ -2171,7 +2202,6 @@ public partial class MainWindow : Window
             {
                 Header = name,
                 IsCheckable = true,
-                IsChecked = string.Equals(_settings.FontFamily, name, StringComparison.OrdinalIgnoreCase),
                 Tag = name,
                 // Preview inside the menu itself: choosing blind by name meant
                 // closing and reopening the menu on every attempt
@@ -2187,25 +2217,38 @@ public partial class MainWindow : Window
         // nothing appeared) - so this opens a window of its own.
         FontMenuItem.Items.Add(new Separator());
 
-        bool isCustom = !string.IsNullOrWhiteSpace(_settings.FontFamily) &&
-                        !FontChoices.Contains(_settings.FontFamily, StringComparer.OrdinalIgnoreCase);
-        var customItem = new MenuItem
-        {
-            Header = isCustom ? L.FontCustomCurrent(_settings.FontFamily) : L.FontCustom,
-            IsCheckable = true,
-            IsChecked = isCustom,
-        };
+        var customItem = new MenuItem { StaysOpenOnClick = false };
         customItem.Click += (_, _) =>
         {
-            // The tick only changes with the dialog result, not with the click
-            customItem.IsChecked = isCustom;
-            if (Root.ContextMenu is { } menu) menu.IsOpen = false;
             string? picked = PromptForFontName(_settings.FontFamily, installed);
-            if (picked == null) return; // cancelled
-            _settings.FontFamily = picked;
-            _settings.Save(); // propagates to every window and rebuilds the menu
+            if (picked != null)
+            {
+                _settings.FontFamily = picked;
+                _settings.Save();
+            }
+            OpenWidgetMenu(PlacementMode.Top);
         };
         FontMenuItem.Items.Add(customItem);
+    }
+
+    private void UpdateFontChecks()
+    {
+        bool matched = false;
+        foreach (var item in FontMenuItem.Items.OfType<MenuItem>())
+        {
+            if (item.Tag is string name)
+            {
+                item.IsChecked = string.Equals(_settings.FontFamily, name, StringComparison.OrdinalIgnoreCase)
+                    || (name.Length == 0 && string.IsNullOrWhiteSpace(_settings.FontFamily));
+                if (name.Length == 0) item.Header = L.FontSystem;
+                matched |= item.IsChecked;
+            }
+            else
+            {
+                item.IsChecked = !matched;
+                item.Header = matched ? L.FontCustom : L.FontCustomCurrent(_settings.FontFamily);
+            }
+        }
     }
 
     /// <summary>Small dialog for typing the name of any installed font.
@@ -2298,13 +2341,10 @@ public partial class MainWindow : Window
 
     private void BuildLanguageMenu()
     {
-        LanguageMenuItem.Items.Clear();
-
         var auto = new MenuItem
         {
             Header = L.LanguageAuto,
             IsCheckable = true,
-            IsChecked = string.IsNullOrWhiteSpace(_settings.Language),
             Tag = "",
         };
         auto.Click += Language_Click;
@@ -2317,11 +2357,21 @@ public partial class MainWindow : Window
             {
                 Header = name,
                 IsCheckable = true,
-                IsChecked = string.Equals(_settings.Language, code, StringComparison.OrdinalIgnoreCase),
                 Tag = code,
             };
             item.Click += Language_Click;
             LanguageMenuItem.Items.Add(item);
+        }
+    }
+
+    private void UpdateLanguageChecks()
+    {
+        foreach (var item in LanguageMenuItem.Items.OfType<MenuItem>())
+        {
+            string code = (string)item.Tag;
+            item.IsChecked = string.Equals(_settings.Language, code, StringComparison.OrdinalIgnoreCase)
+                || (code.Length == 0 && string.IsNullOrWhiteSpace(_settings.Language));
+            if (code.Length == 0) item.Header = L.LanguageAuto;
         }
     }
 
@@ -2331,6 +2381,7 @@ public partial class MainWindow : Window
         _settings.Language = (string)(item.Tag ?? "");
         // Save propagates to every window: each one re-applies the strings
         _settings.Save();
+        RebuildMonitorMenu();
     }
 
     private void Font_Click(object sender, RoutedEventArgs e)
@@ -2479,6 +2530,12 @@ public partial class MainWindow : Window
         _settings.Save();
         _ = RefreshTrackAsync();
         UpdatePosition();
+    }
+
+    private void RightClickSpotify_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.OpenSpotifyOnRightClick = RightClickSpotifyMenu.IsChecked;
+        _settings.Save();
     }
 
     private void Buttons_Click(object sender, RoutedEventArgs e)

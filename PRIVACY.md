@@ -1,8 +1,8 @@
-# Privacy Policy — Taskbar Widget for Spotify
+# Privacy Policy — Now Playing - Taskbar Widget
 
 **Last updated: July 9, 2026**
 
-Taskbar Widget for Spotify does **not collect, store, or transmit any personal
+Now Playing - Taskbar Widget does **not collect, store, or transmit any personal
 data**. There are no analytics, no telemetry, no accounts and no tracking of
 any kind.
 

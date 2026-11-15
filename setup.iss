@@ -1,7 +1,7 @@
-; Instalador do Taskbar Widget for Spotify (per-user, sem UAC)
+; Instalador do Now Playing - Taskbar Widget (per-user, sem UAC)
 ; Compilar: ISCC.exe setup.iss  (depois do publish self-contained do README)
 
-#define MyAppName "Taskbar Widget for Spotify"
+#define MyAppName "Now Playing - Taskbar Widget"
 #define MyAppVersion "1.4.0"
 #define MyAppPublisher "MechanicWB"
 #define MyAppURL "https://github.com/mechanicwb2-hub/spotify-taskbar-widget"

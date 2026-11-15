@@ -7,7 +7,7 @@ seekable progress bar. It follows any player through the Windows media session
 and for Spotify it adds the liked state, all three shuffle modes, repeat and
 volume. Runs on Windows 10 and Windows 11.
 
-> Formerly "Taskbar Widget for Spotify". Independent project, **not affiliated
+> Independent project, **not affiliated
 > with, sponsored or endorsed by Spotify AB**. "Spotify" is a trademark of
 > Spotify AB.
 
@@ -81,7 +81,9 @@ Spotify adds favorites, Smart Shuffle, repeat modes, and volume controls.
 - **Move the floating player:** hold the right mouse button anywhere on the
   player and drag it horizontally or vertically. Its position is saved for each
   monitor and restored the next time floating mode is opened. A normal right
-  click without dragging still opens the context menu.
+  click without dragging uses the configured click action.
+- **Open Spotify on right-click:** off by default. Enable this setting to
+  open Spotify with the right button and the settings menu with the left button.
 - **Position:** locked and automatic by default. To move it: right-click →
   *Move widget*, drag, and untick to lock it in the new spot. *Reset to
   automatic position* brings back auto alignment.

@@ -13,8 +13,8 @@
     <ApplicationIcon>app.ico</ApplicationIcon>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <Version>1.4.0</Version>
-    <Product>Taskbar Widget for Spotify</Product>
-    <AssemblyTitle>Taskbar Widget for Spotify</AssemblyTitle>
+    <Product>Now Playing - Taskbar Widget</Product>
+    <AssemblyTitle>Now Playing - Taskbar Widget</AssemblyTitle>
     <Company>MechanicWB</Company>
     <!-- Um único .exe no publish, para as atualizações substituírem só um ficheiro -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>

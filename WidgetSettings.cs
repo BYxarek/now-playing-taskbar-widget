@@ -54,6 +54,7 @@ public class WidgetSettings
 
     /// <summary>With Spotify closed: true shows an "Open Spotify" button; false hides the widget.</summary>
     public bool ShowLauncher { get; set; } = false;
+    public bool OpenSpotifyOnRightClick { get; set; }
 
     /// <summary>Global shortcut that toggles the widget between the taskbar and a floating window.</summary>
     public int HotkeyKey { get; set; } = 0x53; // S

@@ -4,7 +4,7 @@
 
 Por ordem de potencial:
 1. **Hacker News — "Show HN"** (news.ycombinator.com/submit): título
-   `Show HN: Open-source Spotify controls embedded in the Windows 11 taskbar`,
+   `Show HN: Open-source music controls embedded in the Windows taskbar`,
    URL = repositório GitHub. Depois de submeter, escrever o primeiro comentário
    com a história/detalhes técnicos (usar o corpo do post abaixo). O público do
    HN adora utilitários open source com truques técnicos (UIA/acessibilidade).
@@ -20,7 +20,7 @@ Por ordem de potencial:
 ## Corpo do post (Reddit / primeiro comentário no HN)
 
 **Título:**
-> I made a free widget that puts your Spotify controls right inside the Windows 11 taskbar
+> I made a free widget that puts music controls inside the Windows taskbar
 
 **Corpo:**
 
@@ -52,7 +52,7 @@ Unofficial project, not affiliated with Spotify. Feedback and bug reports very w
 ## Reddit — r/Fiz_Isto (em português)
 
 **Título:**
-> Fiz um widget grátis que mete os controlos do Spotify dentro da barra de tarefas do Windows 11
+> Fiz um widget grátis com controlos de música na barra de tarefas do Windows
 
 **Corpo:**
 
@@ -83,7 +83,7 @@ Projeto independente, não afiliado ao Spotify. Feedback e bug reports são muit
 
 ## X / Twitter
 
-Windows 11 taskbar + Spotify, the way it should've always been:
+Music controls in the Windows taskbar
 
 ▶️ Full controls embedded in the taskbar — play/pause, skips, favorites with liked state, Smart Shuffle, volume, seekable progress bar
 

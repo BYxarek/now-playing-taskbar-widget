@@ -1,6 +1,6 @@
 # Submissão à Microsoft Store — guião completo
 
-Produto: **Taskbar Widget for Spotify** · Store ID: 9P12TLJZG2CJ
+Produto: **Now Playing - Taskbar Widget** · Store ID: 9P12TLJZG2CJ
 
 ## 1. Pacote
 Upload do ficheiro: `Packaging\out\SpotifyTaskbarWidget.msix`
@@ -27,7 +27,7 @@ utilizadores, sem partilha de localização). Resultado esperado: **3+ / E**.
 
 **Description:**
 ```
-See and control your Spotify music without leaving whatever you're doing — a sleek now-playing widget embedded directly into the Windows 11 taskbar.
+See and control your music directly from the Windows taskbar. The widget follows the player that reports its current track to Windows.
 
 FEATURES
 • Album art, title and artist of the current track, always visible in the taskbar
@@ -40,14 +40,14 @@ FEATURES
 • English and Portuguese
 
 NO SETUP NEEDED
-No Spotify login, no API keys, no account. Install it, play music in the Spotify desktop app, and it just works.
+Install the widget and start playback in a player that supports Windows media controls.
 
-Requires the Spotify desktop app. This is an independent open-source project, not affiliated with, sponsored or endorsed by Spotify AB. "Spotify" is a trademark of Spotify AB.
+Favorites, Smart Shuffle, repeat and volume integration require the Spotify desktop app. This is an independent open-source project, not affiliated with, sponsored or endorsed by Spotify AB. "Spotify" is a trademark of Spotify AB.
 ```
 
 **Short description (se pedido):**
 ```
-Now-playing widget for Spotify embedded in the Windows 11 taskbar — full controls, favorites, Smart Shuffle, volume and progress bar. Unofficial.
+A taskbar widget for your music with album art, playback controls and a seekable progress bar.
 ```
 
 **Search terms:** spotify, taskbar, widget, now playing, music controls
@@ -61,7 +61,7 @@ Adicionar idioma "Portuguese (Portugal)" e usar:
 
 **Descrição:**
 ```
-Vê e controla a tua música do Spotify sem saíres do que estás a fazer — um widget elegante embutido diretamente na barra de tarefas do Windows 11.
+Vê e controla a tua música diretamente na barra de tarefas do Windows. O widget acompanha o leitor que comunica a faixa atual ao Windows.
 
 FUNCIONALIDADES
 • Capa, título e artista da música atual, sempre visíveis na barra
@@ -74,9 +74,9 @@ FUNCIONALIDADES
 • Português e inglês
 
 SEM CONFIGURAÇÃO
-Sem login do Spotify, sem chaves de API, sem conta. Instala, põe música na app Spotify, e simplesmente funciona.
+Instala o widget e inicia a reprodução num leitor compatível com os controlos de multimédia do Windows.
 
-Requer a app Spotify para computador. Projeto independente de código aberto, não afiliado, patrocinado ou aprovado pelo Spotify AB. "Spotify" é marca registada do Spotify AB.
+A integração de favoritos, Aleatório Inteligente, repetição e volume requer a app Spotify para computador. Projeto independente de código aberto, não afiliado, patrocinado ou aprovado pelo Spotify AB. "Spotify" é marca registada do Spotify AB.
 ```
 
 ## 7. Submeter

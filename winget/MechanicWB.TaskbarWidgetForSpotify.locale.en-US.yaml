@@ -4,16 +4,15 @@ PackageLocale: en-US
 Publisher: MechanicWB
 PublisherUrl: https://github.com/mechanicwb2-hub
 PublisherSupportUrl: https://github.com/mechanicwb2-hub/spotify-taskbar-widget/issues
-PackageName: Taskbar Widget for Spotify
+PackageName: Now Playing - Taskbar Widget
 PackageUrl: https://github.com/mechanicwb2-hub/spotify-taskbar-widget
 License: MIT
 LicenseUrl: https://github.com/mechanicwb2-hub/spotify-taskbar-widget/blob/main/LICENSE
-ShortDescription: Now-playing widget for Spotify embedded in the Windows 11 taskbar.
+ShortDescription: A taskbar widget for your music.
 Description: >-
-  Shows the current Spotify track (album art, title, artist) directly inside
-  the Windows 11 taskbar, with full controls: play/pause, previous/next,
-  favorites with liked state, the three Spotify shuffle modes (including Smart
-  Shuffle), repeat modes, Spotify volume and a seekable progress bar.
+  Shows album art, title and artist for the current Windows media session
+  in the taskbar, with play/pause, previous/next and a seekable progress bar.
+  Spotify adds favorites, Smart Shuffle, repeat and volume controls.
   Unofficial project, not affiliated with Spotify AB.
 Tags:
   - spotify
