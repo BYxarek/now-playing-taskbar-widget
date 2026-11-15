@@ -128,11 +128,13 @@ public class WidgetSettings
         {
             s = new WidgetSettings();
         }
-        if (s.Monitors.Count == 0)
-            s.Monitors.Add(Math.Max(0, s.MonitorIndex)); // migrate the old format
         s.Monitors = s.Monitors.Where(i => i >= 0).Distinct().OrderBy(i => i).ToList();
+        int legacyMonitor = Math.Max(0, s.MonitorIndex);
+        if (s.Monitors.Count == 0)
+            s.Monitors.Add(legacyMonitor);
         if (!s.AutoPosition && s.ManualX.Count == 0)
-            s.ManualX[s.MonitorIndex] = s.X; // migrate the single manual position
+            s.ManualX[legacyMonitor] = s.X;
+        if (s.Scale <= 0) s.Scale = 1.0;
         // Never below 20%: broken settings with Opacity=0 made the widget
         // invisible with no way to click it back
         s.Opacity = Math.Clamp(s.Opacity, 0.2, 1.0);
@@ -154,18 +156,18 @@ public class WidgetSettings
             X = x;
         try
         {
-            Directory.CreateDirectory(Dir);
-        // Atomic write: save alongside and swap by rename - a crash or a power
-        // cut halfway left a truncated JSON and Load silently reset ALL of the
-        // user's settings
             string tmp = FilePath + ".tmp";
             lock (SaveLock)
             {
+                Directory.CreateDirectory(Dir);
                 File.WriteAllText(tmp, JsonSerializer.Serialize(this));
                 File.Move(tmp, FilePath, overwrite: true);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Diag.Once("settings-save", "Saving widget settings failed: " + ex.Message);
+        }
         Changed?.Invoke();
     }
 }

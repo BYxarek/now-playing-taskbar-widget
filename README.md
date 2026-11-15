@@ -11,7 +11,31 @@ volume. Runs on Windows 10 and Windows 11.
 > with, sponsored or endorsed by Spotify AB**. "Spotify" is a trademark of
 > Spotify AB.
 
-![demo](docs/demo.gif)
+## Player views
+
+### Taskbar player
+
+![Taskbar player showing album art, track information, playback controls, and progress](docs/player-taskbar.png)
+
+Spotify adds favorites, Smart Shuffle, repeat modes, and volume controls.
+
+![Animated demo of the taskbar player with Spotify controls](docs/demo.gif)
+
+### Compact taskbar player
+
+![Compact taskbar player with a narrower title area and fewer buttons](docs/player-compact.png)
+
+### Floating player
+
+![Floating player with a dark background and border](docs/player-floating.png)
+
+### Now-playing display
+
+![Taskbar display with album art, track information, and progress, with playback buttons hidden](docs/player-display-only.png)
+
+### Spotify launcher
+
+![Optional Open Spotify button shown when no media is playing](docs/player-spotify-launcher.png)
 
 ## Install
 
@@ -44,8 +68,8 @@ volume. Runs on Windows 10 and Windows 11.
   windows), so each has its own positioning logic. Works on any resolution/DPI,
   adapts to left-aligned taskbars, follows auto-hide, and supports multiple
   monitors.
-- When the taskbar gets crowded it shrinks to just the album art instead of
-  overlapping your app buttons, and hides if there is really no room.
+- When the taskbar gets crowded, the widget narrows the text area and drops
+  optional controls. It hides if its minimum layout cannot fit.
 - Hides automatically when an app is fullscreen (games, videos).
 
 ## Usage
@@ -112,13 +136,16 @@ Free and open source. If you find it useful, you can support development on
 
 ## Building
 
-Requires the .NET 10 SDK:
+Requires the [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0).
 
 ```powershell
-dotnet publish SpotifyTaskbarWidget.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o publish
+dotnet publish SpotifyTaskbarWidget.csproj -c Release --self-contained true -o publish
 ```
 
 Produces a single standalone `SpotifyTaskbarWidget.exe` for Windows x64.
+On first launch, it extracts the bundled .NET and WPF files to `%TEMP%\.net`.
+To build the installer, run `ISCC.exe setup.iss` with Inno Setup 7 after publishing.
+To build the Store package, run `Packaging/build-msix.ps1` from PowerShell.
 
 ## Structure
 

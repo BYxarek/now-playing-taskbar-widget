@@ -292,7 +292,6 @@
                 <MenuItem x:Name="AutoStartMenu" Header="Start with Windows" IsCheckable="True" Click="AutoStart_Click"/>
                 <MenuItem x:Name="OpenSpotifyMenu" Header="Open Spotify" Click="OpenSpotify_Click"/>
                 <MenuItem x:Name="DonateMenu" Header="Support the project ☕" Click="Donate_Click" Visibility="Collapsed"/>
-                <MenuItem x:Name="UpdateMenu" Header="Check for updates" Click="Update_Click"/>
                 <Separator/>
                 <!-- Fork credit. Not localized: it is a proper name.
                      No hit-testing so it reads as a label, not a clickable item -->

@@ -1,8 +1,8 @@
 ; Instalador do Taskbar Widget for Spotify (per-user, sem UAC)
-; Compilar: ISCC.exe setup.iss  (depois de dotnet publish)
+; Compilar: ISCC.exe setup.iss  (depois do publish self-contained do README)
 
 #define MyAppName "Taskbar Widget for Spotify"
-#define MyAppVersion "1.3.0"
+#define MyAppVersion "1.4.0"
 #define MyAppPublisher "MechanicWB"
 #define MyAppURL "https://github.com/mechanicwb2-hub/spotify-taskbar-widget"
 #define MyAppExeName "SpotifyTaskbarWidget.exe"
@@ -18,6 +18,7 @@ DefaultDirName={userpf}\SpotifyTaskbarWidget
 DisableProgramGroupPage=yes
 DisableDirPage=yes
 PrivilegesRequired=lowest
+ArchitecturesAllowed=x64compatible
 OutputDir=installer
 OutputBaseFilename=SpotifyTaskbarWidget-Setup
 SetupIconFile=app.ico
@@ -52,34 +53,3 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}
 
 [UninstallRun]
 Filename: "taskkill.exe"; Parameters: "/f /im {#MyAppExeName}"; Flags: runhidden; RunOnceId: "KillWidget"
-
-[Code]
-// A app precisa do .NET 8 Desktop Runtime; se faltar, descarrega e instala
-// (link evergreen da Microsoft). Sem rede, a instalação continua na mesma.
-function NeedsDotNet(): Boolean;
-var
-  RC: Integer;
-begin
-  Result := not (Exec('cmd.exe',
-    '/c dotnet --list-runtimes | findstr /C:"Microsoft.WindowsDesktop.App 8." >nul',
-    '', SW_HIDE, ewWaitUntilTerminated, RC) and (RC = 0));
-end;
-
-function PrepareToInstall(var NeedsRestart: Boolean): String;
-var
-  RC: Integer;
-begin
-  Result := '';
-  if NeedsDotNet() then
-  begin
-    try
-      DownloadTemporaryFile(
-        'https://aka.ms/dotnet/8.0/windowsdesktop-runtime-win-x64.exe',
-        'windowsdesktop-runtime.exe', '', nil);
-      Exec(ExpandConstant('{tmp}\windowsdesktop-runtime.exe'),
-        '/install /quiet /norestart', '', SW_SHOW, ewWaitUntilTerminated, RC);
-    except
-      // sem rede ou download falhou — a app avisa ao arrancar
-    end;
-  end;
-end;

@@ -29,23 +29,25 @@ if ($manifest -match "00000000-0000-0000-0000-000000000000") {
 }
 
 # 3. makeappx (SDK BuildTools via NuGet, sem instalar o Windows SDK completo)
-$tools = Join-Path $PSScriptRoot "sdk-tools"
-$makeappx = Get-ChildItem $tools -Recurse -Filter makeappx.exe -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -match "x64" } | Select-Object -First 1
-if (-not $makeappx) {
+$sdkVersion = "10.0.28000.2957"
+$tools = Join-Path $PSScriptRoot "sdk-tools\$sdkVersion"
+$makeappx = Join-Path $tools "bin\10.0.28000.0\x64\makeappx.exe"
+if (-not (Test-Path $makeappx)) {
     Write-Host "== a obter Microsoft.Windows.SDK.BuildTools (NuGet) =="
-    $nupkg = Join-Path $env:TEMP "sdk-buildtools.zip"
-    Invoke-WebRequest "https://www.nuget.org/api/v2/package/Microsoft.Windows.SDK.BuildTools" -OutFile $nupkg
-    Expand-Archive $nupkg $tools -Force
-    $makeappx = Get-ChildItem $tools -Recurse -Filter makeappx.exe |
-        Where-Object { $_.FullName -match "x64" } | Select-Object -First 1
+    $nupkg = Join-Path $env:TEMP "sdk-buildtools-$sdkVersion.zip"
+    try {
+        Invoke-WebRequest "https://api.nuget.org/v3-flatcontainer/microsoft.windows.sdk.buildtools/$sdkVersion/microsoft.windows.sdk.buildtools.$sdkVersion.nupkg" -OutFile $nupkg
+        Expand-Archive $nupkg $tools -Force
+    } finally {
+        Remove-Item $nupkg -ErrorAction SilentlyContinue
+    }
 }
 
 # 4. Empacotar
 New-Item -ItemType Directory -Force $out | Out-Null
 $msix = Join-Path $out "SpotifyTaskbarWidget.msix"
 if (Test-Path $msix) { Remove-Item $msix -Force }
-& $makeappx.FullName pack /d $staging /p $msix /o
+& $makeappx pack /d $staging /p $msix /o
 if ($LASTEXITCODE -ne 0) { throw "makeappx falhou" }
 Write-Host "OK: $msix ($([math]::Round((Get-Item $msix).Length/1MB,1)) MB)"
 Write-Host "Submeter no Partner Center: o pacote segue sem assinatura (a Store assina)."

@@ -181,7 +181,6 @@ internal static class Interop
     public const uint VK_CAPITAL = 0x14;
     public const byte VK_LWIN = 0x5B;
     public const byte VK_RWIN = 0x5C;
-    public const byte VK_B = 0x42;
     public const uint KEYEVENTF_KEYUP = 0x0002;
 
     public const int WH_KEYBOARD_LL = 13;

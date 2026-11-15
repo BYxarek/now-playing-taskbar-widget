@@ -159,9 +159,6 @@ internal static class L
         "Запускать вместе с Windows", "Запускати разом із Windows");
     public static string OpenSpotify => Pick(
         "Open Spotify", "Abrir Spotify", "Открыть Spotify", "Відкрити Spotify");
-    public static string CheckUpdates => Pick(
-        "Check for updates", "Procurar atualizações",
-        "Проверить обновления", "Перевірити оновлення");
     public static string Donate => Pick(
         "Support the project ☕", "Apoiar o projeto ☕",
         "Поддержать проект ☕", "Підтримати проєкт ☕");
@@ -196,28 +193,5 @@ internal static class L
         "nothing playing", "nada a tocar", "ничего не играет", "нічого не грає");
     public static string TipOpenSpotify => OpenSpotify;
 
-    // Updates
-    public static string UpdateAvailable(Version v) => Pick(
-        $"⬤ Update to v{v}", $"⬤ Atualizar para v{v}",
-        $"⬤ Обновить до v{v}", $"⬤ Оновити до v{v}");
-    public static string UpdateLatest(Version v) => Pick(
-        $"You're on the latest version (v{v}).",
-        $"Estás na versão mais recente (v{v}).",
-        $"У вас последняя версия (v{v}).",
-        $"У вас найновіша версія (v{v}).");
-    public static string UpdateNotConfigured(Version v) => Pick(
-        $"Current version: v{v}\n\nAutomatic updates are turned off in this build.",
-        $"Versão atual: v{v}\n\nAs atualizações automáticas estão desligadas nesta build.",
-        $"Текущая версия: v{v}\n\nАвтоматические обновления отключены в этой сборке.",
-        $"Поточна версія: v{v}\n\nАвтоматичні оновлення вимкнено в цій збірці.");
-    public static string UpdatePrompt(Version latest, Version current) => Pick(
-        $"New version v{latest} available (current: v{current}).\n\nUpdate now? The widget restarts by itself.",
-        $"Nova versão v{latest} disponível (atual: v{current}).\n\nAtualizar agora? O widget reinicia sozinho.",
-        $"Доступна новая версия v{latest} (текущая: v{current}).\n\nОбновить сейчас? Виджет перезапустится сам.",
-        $"Доступна нова версія v{latest} (поточна: v{current}).\n\nОновити зараз? Віджет перезапуститься сам.");
-    public static string UpdateError(string message) => Pick(
-        "Could not check for updates: " + message,
-        "Não foi possível verificar atualizações: " + message,
-        "Не удалось проверить обновления: " + message,
-        "Не вдалося перевірити оновлення: " + message);
+
 }

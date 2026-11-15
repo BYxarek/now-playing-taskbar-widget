@@ -32,7 +32,12 @@ internal static class SpotifyVolume
 
     private static void ForEachSpotifySession(Action<ISimpleAudioVolume> action)
     {
-        var pids = Process.GetProcessesByName("Spotify").Select(p => (uint)p.Id).ToHashSet();
+        var pids = new HashSet<uint>();
+        foreach (var process in Process.GetProcessesByName("Spotify"))
+        {
+            using (process)
+                pids.Add((uint)process.Id);
+        }
         if (pids.Count == 0) return;
 
         try

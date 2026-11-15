@@ -48,21 +48,17 @@ public partial class MainWindow : Window
     internal bool ClosedByApp;
 
     private bool _closed;
+    private readonly CancellationTokenSource _lifetime = new();
     private Action? _mediaChanged;
     private Action? _mediaTimeline;
 
     private static readonly List<MainWindow> Instances = new();
-    private static bool _updateCheckStarted;
     private static bool _recreatePending;
     private static IntPtr _keyboardHook;
     private static Interop.LowLevelKeyboardProc? _keyboardProc;
     private static bool _hotkeyDown;
     private static bool _capsHotkeyUsed;
     private static bool _capturingHotkey;
-
-    // Update available (shared by every window): the silent check stores it
-    // here and each window highlights its own menu item
-    private static (Version Version, string Url)? _pendingUpdate;
 
     /// <summary>True if at least one widget window is alive.</summary>
     public static bool HasWindows => Instances.Count > 0;
@@ -112,7 +108,7 @@ public partial class MainWindow : Window
     private bool _spotifyPresent = true;
 
     /// <summary>Spotify process alive - only its extras depend on this.</summary>
-    private bool _spotifyProc;
+    private bool _spotifyControls;
     private DateTime _sessionLostAt = DateTime.MinValue;
     private DateTime _trackNullSince = DateTime.MinValue;
 
@@ -159,12 +155,11 @@ public partial class MainWindow : Window
             IntPtr.Zero, _fgProc, 0, 0, Interop.WINEVENT_OUTOFCONTEXT);
     }
 
-    private readonly object _anchorLock = new();
     private double? _widgetsRightPx;
     private double? _startLeftPx;
     private double? _taskEndPx;
     private DateTime _lastAnchorQuery = DateTime.MinValue;
-    private bool _anchorQueryRunning;
+    private Task? _anchorQuery;
     private IntPtr _anchorsTray;
 
     private const double MaxTextWidth = 150;
@@ -428,7 +423,6 @@ public partial class MainWindow : Window
         LauncherMenu.ToolTip = L.ShowLauncherTip;
         AutoStartMenu.Header = L.AutoStart;
         OpenSpotifyMenu.Header = L.OpenSpotify;
-        UpdateMenu.Header = L.CheckUpdates;
         DonateMenu.Header = L.Donate;
         DonateMenu.Visibility = DonateUrl.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         ExitMenu.Header = L.Exit;
@@ -454,17 +448,7 @@ public partial class MainWindow : Window
     {
         _uiReady = true; // InitializeComponent finished: named elements exist
         ApplyLanguage();
-        if (!UpdateService.IsConfigured)
-            UpdateMenu.Visibility = Visibility.Collapsed; // updates disabled in this build
-        if (PackagedApp.IsPackaged)
-        {
-            UpdateMenu.Visibility = Visibility.Collapsed; // the Store handles updates
-            _ = InitStartupTaskStateAsync();
-        }
-        else
-        {
-            AutoStartMenu.IsChecked = IsAutoStartEnabled();
-        }
+        _ = InitStartupTaskStateAsync();
         ApplyThemeIfChanged();
         RebuildMonitorMenu();
         ApplySettingsUi();
@@ -539,12 +523,12 @@ public partial class MainWindow : Window
 
         // Subscribe BEFORE awaiting initialization: with the SMTC retry, init
         // can take minutes - the widget has to react as soon as it catches
-        _mediaChanged = () =>
+        _mediaChanged = () => Dispatcher.InvokeAsync(() =>
         {
             _artDirty = true;
             _uiaDirty = true;
-            Dispatcher.InvokeAsync(() => _ = RefreshTrackAsync());
-        };
+            _ = RefreshTrackAsync();
+        });
         _mediaTimeline = () => Dispatcher.InvokeAsync(RefreshTimeline);
         _media.Changed += _mediaChanged;
         _media.TimelineChanged += _mediaTimeline;
@@ -552,16 +536,7 @@ public partial class MainWindow : Window
         _trackTimer.Tick += (_, _) => _ = RefreshTrackAsync();
         _trackTimer.Start();
 
-        var mediaInit = _media.InitializeAsync();
-
-        if (UpdateService.IsConfigured && !PackagedApp.IsPackaged && !_updateCheckStarted)
-        {
-            _updateCheckStarted = true; // with several windows, only one checks
-            _ = CheckUpdatesQuietlyAsync();
-        }
-        RefreshUpdateMenu(); // if a new version is already known, highlight it now
-
-        await mediaInit;
+        await _media.InitializeAsync(_lifetime.Token);
         if (_closed)
             return; // closed during the await (monitor sync / Explorer restart)
         await RefreshTrackAsync();
@@ -817,25 +792,14 @@ public partial class MainWindow : Window
 
         if (tray != _anchorsTray)
         {
-            // Target bar changed (another monitor): drop the previous anchors
             _anchorsTray = tray;
+            _anchorQuery = null;
             _lastAnchorQuery = DateTime.MinValue;
-            lock (_anchorLock)
-            {
-                _widgetsRightPx = null;
-                _startLeftPx = null;
-                _taskEndPx = null;
-            }
+            _startMissingReads = 0;
+            _widgetsRightPx = _startLeftPx = _taskEndPx = null;
         }
-        // From here down the bar is settled on screen - anchors are reliable
         RefreshAnchors(tray);
-        double? widgetsRightPx, startLeftPx, taskEndPx;
-        lock (_anchorLock)
-        {
-            widgetsRightPx = _widgetsRightPx;
-            startLeftPx = _startLeftPx;
-            taskEndPx = _taskEndPx;
-        }
+        double? widgetsRightPx = _widgetsRightPx, startLeftPx = _startLeftPx, taskEndPx = _taskEndPx;
 
         // All positioning maths run in PHYSICAL PIXELS of the target bar:
         // converting to DIP used the scale of the window's CURRENT monitor and,
@@ -1111,10 +1075,10 @@ public partial class MainWindow : Window
         bool prev = false, next = false, like = false, shuffle = false, repeat = false, volume = false;
         Take(ref prev, _settings.ShowPrev);
         Take(ref next, _settings.ShowNext);
-        Take(ref like, _settings.ShowLike && _spotifyProc);   // favorites: Spotify only
+        Take(ref like, _settings.ShowLike && _spotifyControls);   // favorites: Spotify only
         Take(ref shuffle, _settings.ShowShuffle);
         Take(ref repeat, _settings.ShowRepeat);
-        Take(ref volume, _settings.ShowVolume && _spotifyProc); // internal volume: Spotify only
+        Take(ref volume, _settings.ShowVolume && _spotifyControls); // internal volume: Spotify only
 
         // Maximum space the text column can take on this bar
         double room = Math.Min(MaxTextWidth, MinTextWidth + (avail - used));
@@ -1173,53 +1137,28 @@ public partial class MainWindow : Window
     /// </summary>
     private int _startMissingReads;
 
-    private void RefreshAnchors(IntPtr tray)
+    private async void RefreshAnchors(IntPtr tray)
     {
-        if ((DateTime.UtcNow - _lastAnchorQuery).TotalSeconds < 5)
-            return;
-        // Watchdog: if a query hung (UIA against a dying Explorer), the flag
-        // must not hold the anchors forever - after 15s start another one
-        if (_anchorQueryRunning && (DateTime.UtcNow - _lastAnchorQuery).TotalSeconds < 15)
+        var now = DateTime.UtcNow;
+        var interval = _anchorQuery?.IsCompleted == false ? 15 : 5;
+        if (now - _lastAnchorQuery < TimeSpan.FromSeconds(interval))
             return;
 
-        _anchorQueryRunning = true;
-        _lastAnchorQuery = DateTime.UtcNow;
-        Task.Run(() =>
-        {
-            try
-            {
-                var (ok, widgetsRight, startLeft, taskButtonsRight) = TaskbarAnchors.Get(tray);
-                lock (_anchorLock)
-                {
-                    // The target bar changed while the query ran: these values
-                    // are coordinates of the wrong monitor - throw them away
-                    if (tray != _anchorsTray)
-                        return;
-                    // Failed read -> ALL previous anchors are kept (a transient
-                    // UIA failure != the bar layout changed; this was what put
-                    // the widget on top of the weather button)
-                    if (!ok)
-                        return;
-                    // Start always exists - an OK read without it is suspicious;
-                    // but accept it on the 3rd in a row, otherwise a genuinely
-                    // hidden Start (modified shells) froze every anchor
-                    if (!startLeft.HasValue && _startLeftPx.HasValue && ++_startMissingReads < 3)
-                        return;
-                    bool startVanished = !startLeft.HasValue && _startLeftPx.HasValue;
-                    _startMissingReads = 0;
-                    // If Start vanished (abnormal shell state), the other null
-                    // anchors probably just failed TOGETHER - keep the old ones;
-                    // with a complete read, null really means disabled
-                    _widgetsRightPx = startVanished ? (widgetsRight ?? _widgetsRightPx) : widgetsRight;
-                    _taskEndPx = startVanished ? (taskButtonsRight ?? _taskEndPx) : taskButtonsRight;
-                    _startLeftPx = startLeft;
-                }
-            }
-            finally
-            {
-                _anchorQueryRunning = false;
-            }
-        });
+        _lastAnchorQuery = now;
+        var query = Task.Run(() => TaskbarAnchors.Get(tray));
+        _anchorQuery = query;
+        var (ok, widgetsRight, startLeft, taskButtonsRight) = await query;
+        if (_closed || _anchorQuery != query || !ok)
+            return;
+
+        // A transient missing Start button must not discard previously read anchors.
+        bool startVanished = !startLeft.HasValue && _startLeftPx.HasValue;
+        if (startVanished && ++_startMissingReads < 3)
+            return;
+        _startMissingReads = 0;
+        _widgetsRightPx = startVanished ? widgetsRight ?? _widgetsRightPx : widgetsRight;
+        _taskEndPx = startVanished ? taskButtonsRight ?? _taskEndPx : taskButtonsRight;
+        _startLeftPx = startLeft;
     }
 
     // ---------- Track refresh ----------
@@ -1230,17 +1169,10 @@ public partial class MainWindow : Window
         _refreshing = true;
         try
         {
-            // Any player that publishes to SMTC (YouTube in a browser, Apple
-            // Music, ...). The Spotify process no longer decides whether the
-            // widget exists - it only tells whether its extras make sense.
-            _spotifyProc = Process.GetProcessesByName("Spotify").Length > 0;
-
-            // SMTC calls can hang forever on a session in teardown (player
-            // closing/reopening) - without a timeout the _refreshing flag stayed
-            // stuck and the widget froze until a restart
-            TrackInfo? track = null;
-            try { track = await _media.GetTrackAsync().WaitAsync(TimeSpan.FromSeconds(5)); }
-            catch (TimeoutException) { }
+            using var trackTimeout = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+            trackTimeout.CancelAfter(TimeSpan.FromSeconds(5));
+            var track = await _media.GetTrackAsync(trackTimeout.Token);
+            if (_closed) return;
 
             // On track changes the session/title go empty for a few hundred ms -
             // keep the current state on screen and re-check right away, instead
@@ -1272,7 +1204,8 @@ public partial class MainWindow : Window
             // With Spotify open the old behaviour stays (shows "nothing playing");
             // without it, the widget only exists while there really is a session -
             // otherwise an empty rectangle sat glued to the bar.
-            _spotifyPresent = !noData || (_spotifyProc && !closing);
+            _spotifyControls = noData ? SpotifyActions.IsRunning() : track!.IsSpotify;
+            _spotifyPresent = !noData || (_spotifyControls && !closing);
 
             var launcherWanted = !_spotifyPresent && _settings.ShowLauncher
                 ? Visibility.Visible : Visibility.Collapsed;
@@ -1346,18 +1279,22 @@ public partial class MainWindow : Window
             // accessibility tree; SMTC is the safety net.
             string key = track.Title + "|" + track.Artist;
             bool keyChanged = key != _lastTrackKey;
-            if (_spotifyProc && (keyChanged || _uiaDirty || DateTime.UtcNow - _lastUiaStateAt > TimeSpan.FromSeconds(5)))
+            _lastTrackKey = key;
+            if (!_spotifyControls)
+                _uiaState = (null, ShuffleMode.Unknown, RepeatMode.Unknown);
+            if (_spotifyControls && (keyChanged || _uiaDirty || DateTime.UtcNow - _lastUiaStateAt > TimeSpan.FromSeconds(5)))
             {
                 _uiaDirty = false;
                 var state = (Liked: (bool?)null, Shuffle: ShuffleMode.Unknown, Repeat: RepeatMode.Unknown, Fresh: false);
                 try { state = await Task.Run(() => _uia.GetState(track.Title)).WaitAsync(TimeSpan.FromSeconds(8)); }
                 catch (TimeoutException) { }
+                if (_closed) return;
                 _lastStateFresh = state.Fresh;
                 // Group still from the previous track (zombie): do not show the old tick
                 _uiaState = (state.Fresh ? state.Liked : null, state.Shuffle, state.Repeat);
                 _lastUiaStateAt = DateTime.UtcNow;
             }
-            if (_spotifyProc && keyChanged)
+            if (_spotifyControls && keyChanged && !_lastStateFresh)
                 _ = SettleStateAsync(); // re-read until Spotify renders the new track's bar
             var (liked, uiaMode, repeatMode) = _uiaState;
             // After adding to favorites, ignore a stale "not liked" - Spotify's
@@ -1366,7 +1303,7 @@ public partial class MainWindow : Window
                 liked = true;
             _liked = liked;
 
-            ApplyRepeatVisual(repeatMode);
+            ApplyRepeatVisual(repeatMode == RepeatMode.Unknown ? track.Repeat : repeatMode);
 
             LikeIcon.Data = liked == true ? CheckCircleGeo : AddCircleGeo;
             LikeIcon.Fill = liked == true ? SpotifyGreen : (liked == false ? Subdued : DimWhite);
@@ -1382,7 +1319,7 @@ public partial class MainWindow : Window
             // grace window like the one on play/pause
             if (DateTime.UtcNow - _shuffleToggledAt > TimeSpan.FromSeconds(4))
             {
-                if (track.IsShuffle == false && mode != ShuffleMode.Unknown)
+                if (track.IsShuffle == false)
                     mode = ShuffleMode.Off;
                 else if (track.IsShuffle == true && mode is ShuffleMode.Off or ShuffleMode.Unknown)
                     mode = ShuffleMode.On;
@@ -1392,11 +1329,13 @@ public partial class MainWindow : Window
 
             if (_settings.ShowArt && (keyChanged || _artDirty))
             {
-                _lastTrackKey = key;
                 _artDirty = false;
-                byte[]? bytes = null;
-                try { bytes = await _media.GetThumbnailAsync().WaitAsync(TimeSpan.FromSeconds(5)); }
-                catch (TimeoutException) { }
+                using var artTimeout = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+                artTimeout.CancelAfter(TimeSpan.FromSeconds(5));
+                var bytes = track.Thumbnail == null
+                    ? null
+                    : await MediaService.GetThumbnailAsync(track.Thumbnail, artTimeout.Token);
+                if (_closed) return;
                 BitmapImage? art = null;
                 if (bytes != null)
                 {
@@ -1519,12 +1458,18 @@ public partial class MainWindow : Window
 
     /// <summary>Light refresh fired by the timeline events (frequent).
     /// Off the UI thread and with a timeout: SMTC can hang on dead sessions.</summary>
+    private Task? _timelineRead;
+
     private async void RefreshTimeline()
     {
-        (TimeSpan Position, TimeSpan Duration, bool IsPlaying, DateTime PositionAtUtc)? tlMaybe = null;
-        try { tlMaybe = await Task.Run(() => _media.GetTimeline()).WaitAsync(TimeSpan.FromSeconds(3)); }
-        catch (TimeoutException) { }
-        if (tlMaybe is not { } tl) return;
+        if (_closed || _timelineRead?.IsCompleted == false) return;
+        var read = Task.Run(_media.GetTimeline);
+        _timelineRead = read;
+        (TimeSpan Position, TimeSpan Duration, bool IsPlaying, DateTime PositionAtUtc)? timeline;
+        try { timeline = await read.WaitAsync(TimeSpan.FromSeconds(3), _lifetime.Token); }
+        catch (TimeoutException) { return; }
+        catch (OperationCanceledException) { return; }
+        if (_closed || _timelineRead != read || timeline is not { } tl) return;
         // After a seek, snapshots from BEFORE the jump keep arriving for a few
         // seconds - applying them made the bar go back and jump again
         if (DateTime.UtcNow - _seekAt < TimeSpan.FromSeconds(3) && tl.PositionAtUtc < _seekAt)
@@ -1572,9 +1517,8 @@ public partial class MainWindow : Window
         }
         _shuffleToggledAt = DateTime.UtcNow;
 
-        bool ok = await Task.Run(() => _uia.CycleShuffle());
-        if (!ok)
-            await _media.ToggleShuffleAsync(); // no Spotify window: on/off only
+        if (!_spotifyControls || !await Task.Run(_uia.CycleShuffle))
+            await _media.ToggleShuffleAsync();
         await Task.Delay(400);
         _uiaDirty = true;
         await RefreshTrackAsync();
@@ -1596,9 +1540,8 @@ public partial class MainWindow : Window
             ApplyRepeatVisual(next);
         }
 
-        bool ok = await Task.Run(() => _uia.CycleRepeat());
-        if (!ok)
-            await _media.CycleRepeatAsync(); // no Spotify window: try through SMTC
+        if (!_spotifyControls || !await Task.Run(_uia.CycleRepeat))
+            await _media.CycleRepeatAsync();
         await Task.Delay(400);
         _uiaDirty = true;
         await RefreshTrackAsync();
@@ -1650,7 +1593,7 @@ public partial class MainWindow : Window
         for (int i = 0; i < 12; i++) // max ~6s
         {
             await Task.Delay(500);
-            if (token != _settleToken) return;
+            if (_closed || token != _settleToken) return;
             _uiaDirty = true;
             await RefreshTrackAsync();
             if (_lastStateFresh) return;
@@ -2421,20 +2364,24 @@ public partial class MainWindow : Window
         _settings.Opacity = Math.Clamp(e.NewValue / 100.0, 0.2, 1.0);
         ApplyOpacity();
         OpacityValueText.Text = $"{Math.Round(e.NewValue)}%";
-        // Defer the Save until the slider settles (no events for ~400ms)
-        _opacitySaveTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
-        _opacitySaveTimer.Stop();
-        _opacitySaveTimer.Tick -= OpacitySaveTick;
-        _opacitySaveTimer.Tick += OpacitySaveTick;
-        _opacitySaveTimer.Start();
+        ScheduleSettingsSave();
     }
 
-    private DispatcherTimer? _opacitySaveTimer;
+    private DispatcherTimer? _settingsSaveTimer;
 
-    private void OpacitySaveTick(object? sender, EventArgs e)
+    private void ScheduleSettingsSave()
     {
-        _opacitySaveTimer?.Stop();
-        _settings.Save(); // propagates to every window through Changed
+        // Mouse-wheel and slider input can update faster than settings need to be persisted.
+        _settingsSaveTimer ??= new DispatcherTimer(TimeSpan.FromMilliseconds(400),
+            DispatcherPriority.Background, SavePendingSettings, Dispatcher);
+        _settingsSaveTimer.Stop();
+        _settingsSaveTimer.Start();
+    }
+
+    private void SavePendingSettings(object? sender, EventArgs e)
+    {
+        _settingsSaveTimer?.Stop();
+        _settings.Save();
     }
 
     private int _opacityWheelAccum;
@@ -2458,7 +2405,6 @@ public partial class MainWindow : Window
     private void ApplyOpacity() => Root.Opacity = _settings.Opacity;
 
     private bool _textPadLoading;
-    private DispatcherTimer? _textPadSaveTimer;
 
     /// <summary>Gap between the text and the buttons (fit-to-text mode).
     /// Previews while dragging and saves only when the slider settles, like
@@ -2471,17 +2417,7 @@ public partial class MainWindow : Window
         // The text column changes width: redo the layout now
         _marqueeKey = "";
         UpdatePosition();
-        _textPadSaveTimer ??= new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
-        _textPadSaveTimer.Stop();
-        _textPadSaveTimer.Tick -= TextPadSaveTick;
-        _textPadSaveTimer.Tick += TextPadSaveTick;
-        _textPadSaveTimer.Start();
-    }
-
-    private void TextPadSaveTick(object? sender, EventArgs e)
-    {
-        _textPadSaveTimer?.Stop();
-        _settings.Save();
+        ScheduleSettingsSave();
     }
 
     private int _textPadWheelAccum;
@@ -2642,84 +2578,6 @@ public partial class MainWindow : Window
         catch { }
     }
 
-    private async void Update_Click(object sender, RoutedEventArgs e)
-    {
-        if (!UpdateService.IsConfigured)
-        {
-            MessageBox.Show(L.UpdateNotConfigured(UpdateService.CurrentVersion), L.AppTitle);
-            return;
-        }
-
-        UpdateMenu.IsEnabled = false;
-        try
-        {
-            // If the silent check already found a new version, use that result
-            // (go straight to the prompt) instead of checking again
-            var update = _pendingUpdate ?? await UpdateService.CheckAsync();
-            if (update == null)
-            {
-                MessageBox.Show(L.UpdateLatest(UpdateService.CurrentVersion), L.AppTitle);
-                return;
-            }
-
-            var answer = MessageBox.Show(
-                L.UpdatePrompt(update.Value.Version, UpdateService.CurrentVersion),
-                L.AppTitle, MessageBoxButton.YesNo);
-            if (answer == MessageBoxResult.Yes)
-                await UpdateService.DownloadAndApplyAsync(update.Value.Url);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show(L.UpdateError(ex.Message), L.AppTitle);
-        }
-        finally
-        {
-            UpdateMenu.IsEnabled = true;
-        }
-    }
-
-    /// <summary>Silent check: at startup and then every 6h (a widget stays open
-    /// for days and would never notice otherwise). If there is a new version, it
-    /// highlights the menu item in ALL windows.</summary>
-    private async Task CheckUpdatesQuietlyAsync()
-    {
-        await Task.Delay(TimeSpan.FromSeconds(20));
-        while (!_closed)
-        {
-            try
-            {
-                var update = await UpdateService.CheckAsync();
-                if (update != null)
-                {
-                    _pendingUpdate = update;
-                    await Dispatcher.InvokeAsync(RefreshAllUpdateMenus);
-                }
-            }
-            catch { }
-            await Task.Delay(TimeSpan.FromHours(6));
-        }
-    }
-
-    private static void RefreshAllUpdateMenus()
-    {
-        foreach (var w in Instances)
-            w.RefreshUpdateMenu();
-    }
-
-    /// <summary>Applies the "new version" highlight to the menu item (green + bold
-    /// + a dot) when an update is pending. Called when the window loads and when
-    /// the check finds a new version.</summary>
-    private void RefreshUpdateMenu()
-    {
-        if (PackagedApp.IsPackaged) return; // the Store handles updates
-        if (_pendingUpdate is { } u)
-        {
-            UpdateMenu.Header = L.UpdateAvailable(u.Version);
-            UpdateMenu.Foreground = new SolidColorBrush(Color.FromRgb(0x1E, 0xD7, 0x60));
-            UpdateMenu.FontWeight = FontWeights.Bold;
-        }
-    }
-
     private void Exit_Click(object sender, RoutedEventArgs e)
     {
         App.IntentionalExit = true;
@@ -2729,7 +2587,10 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
-        _closed = true; // stops OnLoaded continuing if it is still in the await
+        _closed = true;
+        _lifetime.Cancel();
+        _lifetime.Dispose();
+        _volPopupWatchdog?.Stop();
         _positionTimer.Stop();
         _trackTimer.Stop();
         CancelRide(); // the ride tick must not continue on a dead hwnd
@@ -2738,17 +2599,13 @@ public partial class MainWindow : Window
         _media.Shutdown(); // releases the WinRT subscriptions that pinned the window
         WidgetSettings.Changed -= OnSettingsChanged;
         Instances.Remove(this);
-        // Last window closed (e.g. an Explorer restart): reopen the door to the
-        // update check, so the recreated widget checks again
-        if (Instances.Count == 0)
+        if (_settingsSaveTimer?.IsEnabled == true)
+            SavePendingSettings(null, EventArgs.Empty);
+        if (Instances.Count == 0 && _keyboardHook != IntPtr.Zero)
         {
-            _updateCheckStarted = false;
-            if (_keyboardHook != IntPtr.Zero)
-            {
-                Interop.UnhookWindowsHookEx(_keyboardHook);
-                _keyboardHook = IntPtr.Zero;
-                _keyboardProc = null;
-            }
+            Interop.UnhookWindowsHookEx(_keyboardHook);
+            _keyboardHook = IntPtr.Zero;
+            _keyboardProc = null;
         }
         if (!App.IntentionalExit && !ClosedByApp && !_recreatePending)
         {

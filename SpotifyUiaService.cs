@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Windows.Automation;
 
 namespace SpotifyTaskbarWidget;
@@ -96,14 +95,10 @@ public sealed class SpotifyUiaService
             {
                 EnsureGroups();
 
-                bool fresh = true;
                 bool? liked = null;
                 var trackInfo = FindTrackInfoGroup();
-                if (expectedTitle is { Length: > 0 } && trackInfo != null)
-                {
-                    string groupName = trackInfo.Current.Name ?? "";
-                    fresh = groupName.Contains(expectedTitle, StringComparison.OrdinalIgnoreCase);
-                }
+                bool fresh = string.IsNullOrEmpty(expectedTitle) ||
+                    trackInfo?.Current.Name?.Contains(expectedTitle, StringComparison.OrdinalIgnoreCase) == true;
                 var like = FindLikeButton(trackInfo);
                 string likeName = like?.Current.Name ?? "";
                 if (like != null)
@@ -205,11 +200,8 @@ public sealed class SpotifyUiaService
                 if (IsLikedName(like.Current.Name ?? ""))
                     return true; // already in favorites
 
-                var proc = Process.GetProcessesByName("Spotify")
-                    .FirstOrDefault(p => p.MainWindowHandle != IntPtr.Zero);
-                if (proc == null) return false;
-
-                IntPtr wnd = proc.MainWindowHandle;
+                IntPtr wnd = SpotifyActions.GetWindowHandles().FirstOrDefault();
+                if (wnd == IntPtr.Zero) return false;
                 IntPtr prevFg = Interop.GetForegroundWindow();
                 bool wasMinimized = Interop.IsIconic(wnd);
                 Interop.GetCursorPos(out var prevCursor);
@@ -476,12 +468,11 @@ public sealed class SpotifyUiaService
             }
         }
 
-        foreach (var proc in Process.GetProcessesByName("Spotify"))
+        foreach (var window in SpotifyActions.GetWindowHandles())
         {
-            if (proc.MainWindowHandle == IntPtr.Zero) continue;
             try
             {
-                var root = AutomationElement.FromHandle(proc.MainWindowHandle);
+                var root = AutomationElement.FromHandle(window);
                 if (FindInWindow(root)) return;
             }
             catch { }
