@@ -65,6 +65,8 @@ public class WidgetSettings
     public string Language { get; set; } = "";
 
     public TrackPlatform TrackPlatform { get; set; }
+    public bool IncludePrereleases { get; set; }
+    public bool AutoUpdate { get; set; }
 
     /// <summary>Extra gap (DIP, pre-scale) between the text column and the
     /// buttons, in fit-to-text mode. No effect at normal width: there the

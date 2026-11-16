@@ -328,9 +328,15 @@
                 <MenuItem x:Name="RightClickSpotifyMenu" IsCheckable="True" Click="RightClickSpotify_Click"/>
                 <Separator/>
                 <MenuItem x:Name="AutoStartMenu" Header="Start with Windows" IsCheckable="True" Click="AutoStart_Click"/>
+                <MenuItem x:Name="UpdatesMenu" Visibility="Collapsed">
+                    <MenuItem x:Name="UpdateStatusMenu" IsEnabled="False"/>
+                    <MenuItem x:Name="CheckUpdatesMenu" Click="CheckUpdates_Click"/>
+                    <MenuItem x:Name="InstallUpdateMenu" Click="InstallUpdate_Click" Visibility="Collapsed"/>
+                    <Separator/>
+                    <MenuItem x:Name="IncludePrereleasesMenu" IsCheckable="True" Click="UpdateOptions_Click"/>
+                    <MenuItem x:Name="AutoUpdateMenu" IsCheckable="True" Click="UpdateOptions_Click"/>
+                </MenuItem>
                 <MenuItem x:Name="OpenSpotifyMenu" Header="Open Spotify" Click="OpenSpotify_Click" StaysOpenOnClick="False"/>
-                <MenuItem x:Name="DonateMenu" Header="Support the project ☕" Click="Donate_Click"
-                          Visibility="Collapsed" StaysOpenOnClick="False"/>
                 <Separator/>
                 <!-- Fork credit. Not localized: it is a proper name.
                      No hit-testing so it reads as a label, not a clickable item -->

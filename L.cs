@@ -60,6 +60,29 @@ internal static class L
         "Автоматически (Windows)", "Автоматично (Windows)");
 
     // Menu
+    public static string Updates => Pick("Updates", "Atualizações", "Обновления", "Оновлення");
+    public static string UpdateAvailable(string version) => Pick(
+        $"Update available: {version}", $"Atualização disponível: {version}",
+        $"Доступна новая версия: {version}", $"Доступна нова версія: {version}");
+    public static string CheckUpdates => Pick("Check for updates", "Verificar atualizações",
+        "Проверить обновления", "Перевірити оновлення");
+    public static string InstallUpdate => Pick("Install and restart", "Instalar e reiniciar",
+        "Установить и перезапустить", "Встановити й перезапустити");
+    public static string IncludePrereleases => Pick("Include prereleases", "Incluir pré-lançamentos",
+        "Учитывать предварительные релизы", "Враховувати попередні релізи");
+    public static string AutoUpdate => Pick("Install updates automatically", "Instalar atualizações automaticamente",
+        "Устанавливать обновления автоматически", "Встановлювати оновлення автоматично");
+    public static string UpdateChecking => Pick("Checking for updates…", "A verificar atualizações…",
+        "Проверка обновлений…", "Перевірка оновлень…");
+    public static string UpdateInstalling => Pick("Downloading update…", "A descarregar a atualização…",
+        "Загрузка обновления…", "Завантаження оновлення…");
+    public static string UpdateCurrent => Pick("No updates available", "Não há atualizações disponíveis",
+        "Обновлений нет", "Оновлень немає");
+    public static string UpdateCheckFailed => Pick("Could not check for updates", "Não foi possível verificar atualizações",
+        "Не удалось проверить обновления", "Не вдалося перевірити оновлення");
+    public static string UpdateInstallFailed => Pick("Update failed. Try installing again.", "A atualização falhou. Tente instalar de novo.",
+        "Не удалось обновить. Повторите установку.", "Не вдалося оновити. Спробуйте встановити ще раз.");
+
     public static string TrackCatalog => Pick("Track catalog", "Catálogo de faixas", "Каталог треков", "Каталог треків");
     public static string WindowsMedia => Pick("Windows media", "Multimédia do Windows", "Медиа Windows", "Медіа Windows");
     public static string Playlists(string platform) => Pick(
@@ -243,9 +266,6 @@ internal static class L
         "Запускать вместе с Windows", "Запускати разом із Windows");
     public static string OpenSpotify => Pick(
         "Open Spotify", "Abrir Spotify", "Открыть Spotify", "Відкрити Spotify");
-    public static string Donate => Pick(
-        "Support the project ☕", "Apoiar o projeto ☕",
-        "Поддержать проект ☕", "Підтримати проєкт ☕");
     public static string Exit => Pick("Quit", "Sair", "Выход", "Вихід");
 
     // Tooltips / states

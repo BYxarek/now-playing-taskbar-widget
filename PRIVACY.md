@@ -27,12 +27,12 @@ Now Playing - Taskbar Widget has no analytics, telemetry, or widget accounts.
   memory. Opening **My library** reads the account's playlists and saved or
   liked tracks. Starting or queuing a Spotify track sends its identifier to
   Spotify. The SoundCloud queue is kept locally in memory.
-- Microsoft Store updates are handled by the Store.
-- The optional "Support the project" menu item opens your web browser at
-  ko-fi.com; any interaction there is governed by Ko-fi's own privacy policy.
+- The installer-based desktop build checks the public GitHub Releases API for
+  new versions at startup and periodically. It downloads an installer from
+  GitHub when you request an update or enable automatic installation. These
+  requests include the widget's user agent and GitHub receives your IP address.
+  Microsoft Store updates are handled by the Store.
 
 This is an independent open-source project, not affiliated with Spotify AB.
-Source code: https://github.com/mechanicwb2-hub/spotify-taskbar-widget
-
-Contact: open an issue at
-https://github.com/mechanicwb2-hub/spotify-taskbar-widget/issues
+[Source code](https://github.com/BYxarek/now-playing-taskbar-widget) ·
+[Contact via GitHub Issues](https://github.com/BYxarek/now-playing-taskbar-widget/issues)

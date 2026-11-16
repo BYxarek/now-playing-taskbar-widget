@@ -1,218 +1,118 @@
-# Now Playing - Taskbar Widget
+# Now Playing · Taskbar Widget
 
-A now-playing widget embedded right into the Windows taskbar: album art, title
-and artist of whatever's playing, with full controls — play/pause, skips and a
-seekable progress bar. It follows any player through the Windows media session
-(Spotify, YouTube in a browser, Apple Music, Windows Media Player, and more),
-and for Spotify it adds the liked state, all three shuffle modes, repeat and
-volume. Runs on Windows 10 and Windows 11.
+**See and control what’s playing from your Windows taskbar.** View album art,
+seek through a track, and switch between a docked widget and a floating player.
 
-> Independent project, **not affiliated
-> with, sponsored or endorsed by Spotify AB**. "Spotify" is a trademark of
-> Spotify AB.
+**[Download the beta installer](https://github.com/BYxarek/now-playing-taskbar-widget/releases/download/v1.4.0.beta.2/SpotifyTaskbarWidget-Setup.exe)** ·
+[Release notes](https://github.com/BYxarek/now-playing-taskbar-widget/releases/tag/v1.4.0.beta.2) ·
+[Stable releases](https://github.com/BYxarek/now-playing-taskbar-widget/releases/latest)
 
-## Player views
+Windows 10 (2004+) and Windows 11 · x64 · English, Português, Русский, Українська
 
-### Taskbar player
+![Now Playing widget docked to the Windows taskbar, showing album art and playback controls](docs/player-taskbar.png)
 
-![Taskbar player showing album art, track information, playback controls, and progress](docs/player-taskbar.png)
+| Floating player | Compact widget | Now-playing display |
+| :---: | :---: | :---: |
+| ![Floating player](docs/player-floating.png) | ![Compact taskbar widget](docs/player-compact.png) | ![Track details with playback buttons hidden](docs/player-display-only.png) |
 
-Spotify adds favorites, Smart Shuffle, repeat modes, and volume controls.
+## Install and get started
 
-![Animated demo of the taskbar player with Spotify controls](docs/demo.gif)
+1. Run **SpotifyTaskbarWidget-Setup.exe** and choose an installation folder. The
+   installer includes the .NET runtime and puts the widget and its dependencies
+   in that folder.
+2. Start playing something in Spotify, a browser, or another app that reports
+   playback to Windows. The widget follows the active Windows media session
+   with its default settings.
+3. Right-click the widget to open its menu. Press **Caps Lock + S** to switch
+   between the taskbar and the floating player. Change the shortcut from the
+   notification-area icon.
 
-### Compact taskbar player
+The latest stable release uses a portable EXE. If you’re switching from a
+portable build, close it before starting the installed widget.
 
-![Compact taskbar player with a narrower title area and fewer buttons](docs/player-compact.png)
+## Make it yours
 
-### Floating player
+| What you can do | Where to find it |
+| --- | --- |
+| Play, pause, skip and seek | Use the widget buttons and click the progress bar to seek. |
+| Move the widget | Enable **Move widget**, drag, then untick it to lock the position. In floating mode, hold the right mouse button and drag. |
+| Show the widget on multiple screens | Select taskbars in **Monitor**. Enable the Windows taskbar on each screen you plan to use. |
+| Change the layout | Adjust **Size**, **Brightness**, and **Buttons**. Hide the playback buttons for a track display, or enable **Shrink width to fit text** for a compact layout. |
+| Use Spotify desktop controls | Show favorites, shuffle, Smart Shuffle, repeat, and Spotify’s own volume control when the desktop app exposes them. |
+| Find more music | Use **Catalog search**, expand playlists, or open **My library** after connecting an account. |
 
-![Floating player with a dark background and border](docs/player-floating.png)
+The widget reduces its footprint on crowded taskbars and hides when there’s
+too little space or a fullscreen app is active. Settings and the error log
+are stored in `%APPDATA%\SpotifyTaskbarWidget\`.
 
-### Now-playing display
+## Updates
 
-![Taskbar display with album art, track information, and progress, with playback buttons hidden](docs/player-display-only.png)
+The installed widget checks this repository’s GitHub releases at startup and
+once an hour. If an installer is available for a newer version, the right-click
+menu shows it under **Updates**. Choose **Install and restart** to apply it.
 
-### Spotify launcher
+- **Include prereleases** includes preview builds in update checks.
+- **Install updates automatically** downloads and verifies the installer, updates
+  the existing folder in the background, and restarts the widget.
 
-![Optional Open Spotify button shown when no media is playing](docs/player-spotify-launcher.png)
+Both options are off by default. If you installed this beta and want future
+betas to appear, turn on **Include prereleases**.
 
-## Install
+## Spotify and SoundCloud catalogs
 
-- **GitHub Releases:** download and run
-  [**SpotifyTaskbarWidget.exe**](https://github.com/BYxarek/now-playing-taskbar-widget/releases/latest).
-  It is a portable, self-contained Windows x64 build: no installer or separate
-  .NET installation is required.
-- **Microsoft Store (recommended — always the latest version):**
-  [**Now Playing - Taskbar Widget**](https://apps.microsoft.com/detail/9p12tljzg2cj) —
-  one-click install, automatic updates, works with Smart App Control enabled,
-  and supports both Windows 10 (2004+) and Windows 11.
-- **winget** (pending review): `winget install MechanicWB.TaskbarWidgetForSpotify`
-- UI languages: English, Portuguese, Russian and Ukrainian (follows your Windows
-  language, or can be selected manually).
+**Windows media** works without account credentials. Enable an optional catalog
+to look up the current track’s link and cover art, search tracks and playlists,
+and browse your personal library after connecting an account.
 
-## How it works
+<details>
+<summary><strong>Set up API access and playback</strong></summary>
 
-- Track data comes from the **Windows media session API (SMTC)** — the same one
-  behind the Windows volume flyout. Any player that reports to Windows shows up
-  there (Spotify, YouTube, Apple Music, Windows Media Player…), so the widget
-  follows the current media session. The default **Windows media** catalog
-  mode requires no credentials.
-- Selecting **Spotify** or **SoundCloud** as the track catalog searches that
-  service for the title and artist reported by Windows. A match supplies a
-  track link and, when available, cover art. Windows supplies the playback
-  state and controls, and provides the cover if the catalog lookup fails.
-- For Spotify's extra controls (liked state, Smart Shuffle, repeat, internal
-  volume) there is no clean API, so the widget reads Spotify's own accessibility
-  tree via UI Automation.
-- The taskbar no longer supports "deskbands", so the widget is a borderless
-  always-visible window docked over the empty area of the taskbar.
-- **Automatic positioning:** it aligns itself next to the clock/weather area and
-  never overlaps the app buttons or the system tray. The Windows 10 and 11
-  taskbars are completely different internally (11 is XAML, 10 is classic child
-  windows), so each has its own positioning logic. Works on any resolution/DPI,
-  adapts to left-aligned taskbars, follows auto-hide, and supports multiple
-  monitors.
-- When the taskbar gets crowded, the widget narrows the text area and drops
-  optional controls. It hides if its minimum layout cannot fit.
-- Hides automatically when an app is fullscreen (games, videos).
+Create an API app with the service you want to use. Add its Client ID and Client
+Secret as Windows **user environment variables**, then restart the widget and
+choose the service under **Track catalog**.
 
-## Usage
-
-- **Floating player:** press `Caps Lock + S` to move the widget from the
-  taskbar onto the screen; press it again to return. The shortcut can be changed
-  from the tray menu. Floating mode adds a dark background and a visible border
-  so the player stays readable over other windows.
-- **Move the floating player:** hold the right mouse button anywhere on the
-  player and drag it horizontally or vertically. Its position is saved for each
-  monitor and restored the next time floating mode is opened. A normal right
-  click without dragging uses the configured click action.
-- **Open Spotify on right-click:** off by default. Enable this setting to
-  open Spotify with the right button and the settings menu with the left button.
-- **Position:** locked and automatic by default. To move it: right-click →
-  *Move widget*, drag, and untick to lock it in the new spot. *Reset to
-  automatic position* brings back auto alignment.
-- **Track catalog:** open the widget menu → *Track catalog* and choose
-  *Windows media*, *Spotify*, or *SoundCloud*. When a track matches the selected
-  catalog, *Open track in …* opens the service's track page.
-- **Playlists:** open *Spotify playlists* or *SoundCloud playlists* in the
-  widget menu to search that catalog for public playlists using the current
-  track's artist. Expand a result to see its tracks and choose *Show more*
-  when another page is available. Expand a track and choose *Play* to start
-  it or *Add to queue* to save it for later. SoundCloud plays public full-length
-  streams in the widget. Spotify starts the track or playlist on your active
-  Spotify Connect device. Spotify Development Mode restricts access to the
-  contents of playlists you neither own nor collaborate on.
-- **Catalog search:** enter a title or artist and choose *Find tracks* or
-  *Find playlists*. Search results and playlist contents open in the menu.
-- **My library:** after connecting the selected account, browse personal
-  playlists and saved Spotify tracks or liked SoundCloud tracks. The library
-  is read-only.
-- **Multiple monitors:** right-click → *Monitor* and tick every taskbar you
-  want a widget on — each display gets its own, with shared settings. (Needs
-  Windows' "show my taskbar on all displays" enabled for secondary monitors.)
-- **Size:** right-click → *Size* → Small / Normal / Large.
-- **Brightness:** right-click → *Brightness* — a slider from 20% to 100%, handy
-  to dim the widget on OLED or transparent taskbars. Scroll the mouse wheel
-  over it to fine-tune.
-- **Buttons:** right-click → *Buttons* to choose which controls appear —
-  play/pause, favorites (+), shuffle, previous, next, repeat, volume. Hide
-  play/pause to use it as a pure now-playing display.
-- **Long titles:** scroll continuously by default; right-click → *Scroll title
-  only once* to have them scroll once at the start of each track and then rest.
-- **Favorites (+, Spotify):** reads and clicks Spotify's own button through the
-  Spotify window's accessibility tree — shows a **green check** when the track
-  is already saved, and adds it without stealing focus. Spotify freezes this
-  info while its window is minimized (and has locked the Web API alternative),
-  so the widget shows the green check only when it can actually confirm it,
-  otherwise it stays neutral rather than guessing. See
-  [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for the full explanation.
-- **Shuffle (Spotify):** all three modes — off (gray), shuffle (green) and
-  **Smart Shuffle** (green with a star). Repeat supports off / playlist / track.
-- **Volume:** for Spotify it moves Spotify's own slider; for other players it
-  uses the Windows app volume.
-- **Progress bar:** live position at the bottom of the widget; click to seek.
-- Settings and error log live in `%APPDATA%\SpotifyTaskbarWidget\`.
-
-### Spotify and SoundCloud API setup
-
-Create your own API app and set the corresponding pair of **user environment
-variables** in Windows. Use your API app's Client ID and Client Secret.
-
-| Catalog | User environment variables | App registration |
+| Service | Environment variables | Account redirect URI |
 | --- | --- | --- |
-| Spotify | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | [Spotify for Developers](https://developer.spotify.com/dashboard), Premium required for Development Mode |
-| SoundCloud | `SOUNDCLOUD_CLIENT_ID`, `SOUNDCLOUD_CLIENT_SECRET` | [SoundCloud Developers](https://developers.soundcloud.com/docs/api/register-app), Artist Pro required |
+| [Spotify for Developers](https://developer.spotify.com/dashboard) | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` | `http://127.0.0.1:43873/spotify/callback` |
+| [SoundCloud for Developers](https://developers.soundcloud.com/docs/api/register-app) | `SOUNDCLOUD_CLIENT_ID`, `SOUNDCLOUD_CLIENT_SECRET` | `http://127.0.0.1:43873/soundcloud/callback` |
 
-Restart the widget and select the catalog. The selected service receives the
-search query for the current track. Choose **Windows media** to use local
-metadata only. See the [privacy policy](PRIVACY.md).
+- **Spotify** sends playback and queue commands to your active Spotify Connect
+  device. Start Spotify, select a device, and choose **Connect Spotify account**
+  in the widget. Playback requires Premium. Development Mode restricts access
+  to some playlist contents.
+- **SoundCloud** plays public, fully streamable tracks in the widget and keeps a
+  local queue for the current session. Connect your account to browse personal
+  playlists and liked tracks.
+- To connect an account, register the redirect URI from the table in the
+  corresponding API app. The widget keeps the connection in memory until it
+  exits or you disconnect.
 
-#### Start playback from a playlist
+[Catalog capabilities](docs/music-api-capabilities.md) · [Privacy policy](PRIVACY.md)
 
-- **Spotify:** register `http://127.0.0.1:43873/spotify/callback` as a redirect
-  URI for the Spotify app you configured. Open Spotify and select a playback
-  device. Choose **Connect Spotify account** in the widget menu, then
-  authorize the account in your browser. A Premium account is required.
-  The connection lasts until you exit the widget or choose **Disconnect
-  Spotify account**. Use **Play playlist** to start a whole playlist, or click
-  a track when Spotify provides the playlist contents.
-- **SoundCloud:** click a public, fully streamable track. The widget handles
-  play/pause and seeking where the stream allows it. Use **Stop SoundCloud
-  playback** to stop and clear the queue. Use **SoundCloud queue** to start a
-  waiting queue or skip to the next track. While the player is active, queued
-  tracks advance automatically. The SoundCloud logo links to the track's
-  source page.
-- **SoundCloud library:** register `http://127.0.0.1:43873/soundcloud/callback`
-  as the SoundCloud app's redirect URI. Select **Connect SoundCloud account**
-  and authorize it in your browser. This is only needed for the private library.
-  Both account connections last until you exit the widget or disconnect.
+</details>
 
-Spotify queue commands affect the active Spotify Connect device. The
-SoundCloud queue is local to the running widget.
+## Build from source
 
-See [Music API capabilities](docs/music-api-capabilities.md) for potential
-additions and their API requirements.
-
-## Pro (optional)
-
-The widget is free. An optional paid **Pro** add-on on the Microsoft Store adds
-themes, an audio visualizer, synced lyrics and global hotkeys. The whole core
-(now-playing, controls, positioning, any-player support, Windows 10 and 11)
-stays free.
-
-## Troubleshooting
-
-Something not working? See **[TROUBLESHOOTING.md](TROUBLESHOOTING.md)** — covers
-"nothing playing", antivirus flags, Smart App Control, positioning and more.
-Still stuck?
-[Open an issue](https://github.com/BYxarek/now-playing-taskbar-widget/issues).
-
-## Support
-
-Free and open source. If you find it useful, you can support development on
-**[Ko-fi](https://ko-fi.com/mechanicwb2)** ☕
-
-## Building
-
-Requires the [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0).
+Install the [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0)
+and [Inno Setup](https://jrsoftware.org/inno-setup/downloads). Publish to a fresh
+`publish` directory, then build the installer.
 
 ```powershell
 dotnet publish SpotifyTaskbarWidget.csproj -c Release --self-contained true -o publish
+ISCC.exe setup.iss
 ```
 
-Produces a single standalone `SpotifyTaskbarWidget.exe` for Windows x64.
-On first launch, it extracts the bundled .NET and WPF files to `%TEMP%\.net`.
-To build the installer, run `ISCC.exe setup.iss` with Inno Setup 7 after publishing.
-To build the Store package, run `Packaging/build-msix.ps1` from PowerShell.
+The output is `installer/SpotifyTaskbarWidget-Setup.exe`. For a prerelease,
+pass the same version to both commands, for example `-p:Version=1.4.0-beta.2`
+and `/DMyAppVersion=1.4.0-beta.2`. Use the exact installer filename as the
+GitHub release asset so the widget can find it.
 
-## Structure
+## Help and credits
 
-| File | Role |
-|---|---|
-| `MainWindow.xaml(.cs)` | Widget UI, positioning, responsive layout, menu |
-| `MediaService.cs` | Windows media session (track, art, play/pause, timeline) |
-| `SpotifyUiaService.cs` | Spotify window accessibility: favorites, shuffle, repeat, volume |
-| `SpotifyVolume.cs` | CoreAudio: app volume / play state via the Windows mixer |
-| `Interop.cs` | Win32 (taskbar position, topmost, fullscreen detection, input) |
-| `WidgetSettings.cs` | Position, scale, theme and visible buttons, stored as JSON |
+[Troubleshooting](TROUBLESHOOTING.md) ·
+[Report a bug or request a feature](https://github.com/BYxarek/now-playing-taskbar-widget/issues) ·
+[MIT license](LICENSE)
+
+Maintained in the BYxarek fork. Based on the work of MechanicWB and
+[Priler](https://github.com/Priler/now-playing-taskbar-widget). See the license
+for attribution and trademark notices.

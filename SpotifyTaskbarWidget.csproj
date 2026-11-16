@@ -16,12 +16,8 @@
     <Product>Now Playing - Taskbar Widget</Product>
     <AssemblyTitle>Now Playing - Taskbar Widget</AssemblyTitle>
     <Company>MechanicWB</Company>
-    <!-- Um único .exe no publish, para as atualizações substituírem só um ficheiro -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
-    <!-- WPF's mixed-mode assemblies need to load from disk (dotnet/wpf#11842). -->
-    <IncludeAllContentForSelfExtract Condition="'$(PublishSingleFile)' == 'true' and '$(SelfContained)' == 'true'">true</IncludeAllContentForSelfExtract>
   </PropertyGroup>
 
   <ItemGroup>

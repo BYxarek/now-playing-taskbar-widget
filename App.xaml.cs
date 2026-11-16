@@ -58,6 +58,7 @@ public partial class App : Application
         }
 
         CreateTrayIcon();
+        UpdateService.Start(e.Args.Contains(UpdateService.FailedArgument));
     }
 
     private void CreateTrayIcon()

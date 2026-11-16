@@ -20,9 +20,6 @@ public partial class MainWindow : Window
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string RunValueName = "SpotifyTaskbarWidget";
 
-    // Donation link; empty = the menu item stays hidden
-    private const string DonateUrl = "https://ko-fi.com/mechanicwb2";
-
     // Spotify icons (16x16 paths from the web player)
     private static readonly Geometry PlayGeo = Geometry.Parse("M3 1.713a.7.7 0 0 1 1.05-.607l10.89 6.288a.7.7 0 0 1 0 1.212L4.05 14.894A.7.7 0 0 1 3 14.288V1.713z");
     private static readonly Geometry PauseGeo = Geometry.Parse("M2.7 1a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7H2.7zm8 0a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7h-2.6z");
@@ -443,9 +440,8 @@ public partial class MainWindow : Window
         RightClickSpotifyMenu.Header = L.OpenSpotifyOnRightClick;
         RightClickSpotifyMenu.ToolTip = L.OpenSpotifyOnRightClickTip;
         AutoStartMenu.Header = L.AutoStart;
+        RefreshUpdateMenu();
         OpenSpotifyMenu.Header = L.OpenSpotify;
-        DonateMenu.Header = L.Donate;
-        DonateMenu.Visibility = DonateUrl.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         ExitMenu.Header = L.Exit;
 
         PrevButton.ToolTip = L.TipPrev;
@@ -477,6 +473,7 @@ public partial class MainWindow : Window
         ApplySettingsUi();
         // The settings are shared: when another window saves, re-apply them
         WidgetSettings.Changed += OnSettingsChanged;
+        UpdateService.Changed += RefreshUpdateMenu;
 
         // Mouse capture stolen mid-drag (menu, system overlay): without this
         // _dragging stayed stuck and the widget stopped repositioning; the next
@@ -2180,6 +2177,41 @@ public partial class MainWindow : Window
             AutoStartMenu.IsChecked = IsAutoStartEnabled();
     }
 
+    private void RefreshUpdateMenu()
+    {
+        if (!UpdateService.IsSupported) return;
+        UpdatesMenu.Visibility = Visibility.Visible;
+        var release = UpdateService.Available;
+        UpdatesMenu.Header = release == null ? L.Updates : L.UpdateAvailable(release.Tag);
+        UpdateStatusMenu.Header = UpdateService.IsInstalling ? L.UpdateInstalling
+            : UpdateService.IsChecking ? L.UpdateChecking
+            : UpdateService.InstallFailed ? L.UpdateInstallFailed
+            : UpdateService.CheckFailed ? L.UpdateCheckFailed
+            : release == null && UpdateService.HasChecked ? L.UpdateCurrent : null;
+        UpdateStatusMenu.Visibility = UpdateStatusMenu.Header == null ? Visibility.Collapsed : Visibility.Visible;
+        CheckUpdatesMenu.Header = L.CheckUpdates;
+        CheckUpdatesMenu.IsEnabled = !UpdateService.IsChecking && !UpdateService.IsInstalling;
+        InstallUpdateMenu.Header = L.InstallUpdate;
+        InstallUpdateMenu.Visibility = release == null ? Visibility.Collapsed : Visibility.Visible;
+        InstallUpdateMenu.IsEnabled = CheckUpdatesMenu.IsEnabled;
+        IncludePrereleasesMenu.Header = L.IncludePrereleases;
+        IncludePrereleasesMenu.IsChecked = _settings.IncludePrereleases;
+        AutoUpdateMenu.Header = L.AutoUpdate;
+        AutoUpdateMenu.IsChecked = _settings.AutoUpdate;
+    }
+
+    private async void CheckUpdates_Click(object sender, RoutedEventArgs e) => await UpdateService.CheckAsync();
+
+    private async void InstallUpdate_Click(object sender, RoutedEventArgs e) => await UpdateService.InstallAsync();
+
+    private async void UpdateOptions_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.IncludePrereleases = IncludePrereleasesMenu.IsChecked;
+        _settings.AutoUpdate = AutoUpdateMenu.IsChecked;
+        _settings.Save();
+        await UpdateService.InstallAsync(automatic: true);
+    }
+
     /// <summary>One item PER EXISTING taskbar, with multiple selection - every
     /// ticked monitor gets its own widget instance (community request).
     /// At least one always stays ticked.</summary>
@@ -2912,15 +2944,6 @@ public partial class MainWindow : Window
 
     private void OpenSpotify_Click(object sender, RoutedEventArgs e) => SpotifyActions.OpenSpotifyWindow();
 
-    private void Donate_Click(object sender, RoutedEventArgs e)
-    {
-        try
-        {
-            Process.Start(new ProcessStartInfo(DonateUrl) { UseShellExecute = true });
-        }
-        catch { }
-    }
-
     private void Exit_Click(object sender, RoutedEventArgs e)
     {
         App.IntentionalExit = true;
@@ -2941,6 +2964,7 @@ public partial class MainWindow : Window
         if (_mediaTimeline != null) _media.TimelineChanged -= _mediaTimeline;
         _media.Shutdown(); // releases the WinRT subscriptions that pinned the window
         WidgetSettings.Changed -= OnSettingsChanged;
+        UpdateService.Changed -= RefreshUpdateMenu;
         Instances.Remove(this);
         if (_settingsSaveTimer?.IsEnabled == true)
             SavePendingSettings(null, EventArgs.Empty);

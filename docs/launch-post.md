@@ -45,7 +45,7 @@ I always hated that the Windows 11 taskbar has all that dead space next to the w
 
 The Store version installs in one click and updates automatically. winget support is pending review.
 
-Unofficial project, not affiliated with Spotify. Feedback and bug reports very welcome — and if you find it useful, there's a Ko-fi link in the repo ☕
+Unofficial project, not affiliated with Spotify. Feedback and bug reports are welcome.
 
 ---
 
@@ -77,7 +77,7 @@ Sempre me irritou a barra de tarefas do Windows 11 ter aquele espaço morto ao l
 
 A versão da Store instala-se num clique e atualiza-se sozinha.
 
-Projeto independente, não afiliado ao Spotify. Feedback e bug reports são muito bem-vindos — e se for útil, há um Ko-fi no repositório ☕
+Projeto independente, não afiliado ao Spotify. Feedback e bug reports são muito bem-vindos.
 
 ---
 
@@ -103,4 +103,3 @@ Free & open source. No login needed.
   promoção de apps de terceiros). Responder cedo aos comentários — o primeiro
   par de horas decide o alcance.
 - **X:** o GIF vai como media. Publicar em horário US (17h-20h PT).
-- Ter o Ko-fi e o repo prontos para tráfego; issues abertas = bom sinal de vida.
