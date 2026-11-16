@@ -60,6 +60,82 @@ internal static class L
         "Автоматически (Windows)", "Автоматично (Windows)");
 
     // Menu
+    public static string TrackCatalog => Pick("Track catalog", "Catálogo de faixas", "Каталог треков", "Каталог треків");
+    public static string WindowsMedia => Pick("Windows media", "Multimédia do Windows", "Медиа Windows", "Медіа Windows");
+    public static string Playlists(string platform) => Pick(
+        $"{platform} playlists", $"Playlists do {platform}", $"Плейлисты {platform}", $"Плейлисти {platform}");
+    public static string PlaylistsNeedArtist => Pick(
+        "Play a track to find playlists", "Reproduz uma faixa para encontrar playlists",
+        "Включите трек для поиска плейлистов", "Увімкніть трек для пошуку плейлистів");
+    public static string PlaylistsNeedCredentials => Pick(
+        "API credentials required", "São necessárias credenciais da API",
+        "Нужны ключи API", "Потрібні ключі API");
+    public static string PlaylistsLoading => Pick(
+        "Searching playlists…", "A procurar playlists…", "Поиск плейлистов…", "Пошук плейлистів…");
+    public static string PlaylistsEmpty => Pick(
+        "No playlists found", "Não foram encontradas playlists", "Плейлисты не найдены", "Плейлисти не знайдено");
+    public static string PlaylistsUnavailable => Pick(
+        "Could not load playlists", "Não foi possível carregar as playlists",
+        "Не удалось загрузить плейлисты", "Не вдалося завантажити плейлисти");
+    public static string PlaylistTracksUnavailable => Pick(
+        "Track list unavailable", "Lista de faixas indisponível", "Список треков недоступен", "Список треків недоступний");
+    public static string OpenPlaylistInSpotify => Pick(
+        "Open in Spotify app", "Abrir na aplicação Spotify",
+        "Открыть в приложении Spotify", "Відкрити в застосунку Spotify");
+    public static string SpotifyAppUnavailable => Pick(
+        "Could not open the Spotify app", "Não foi possível abrir a aplicação Spotify",
+        "Не удалось открыть приложение Spotify", "Не вдалося відкрити застосунок Spotify");
+    public static string PlayPlaylist => Pick("Play playlist", "Reproduzir playlist", "Воспроизвести плейлист", "Відтворити плейлист");
+    public static string StartingPlayback => Pick("Starting playback…", "A iniciar a reprodução…", "Запуск воспроизведения…", "Запуск відтворення…");
+    public static string PlaybackUnavailable => Pick(
+        "Could not start playback", "Não foi possível iniciar a reprodução",
+        "Не удалось запустить воспроизведение", "Не вдалося запустити відтворення");
+    public static string ConnectSpotify => Pick("Connect Spotify account", "Ligar conta Spotify",
+        "Подключить аккаунт Spotify", "Підключити обліковий запис Spotify");
+    public static string DisconnectSpotify => Pick("Disconnect Spotify account", "Desligar conta Spotify",
+        "Отключить аккаунт Spotify", "Відключити обліковий запис Spotify");
+    public static string SpotifyNoDevice => Pick("Select an active device in Spotify", "Seleciona um dispositivo ativo no Spotify",
+        "Выберите активное устройство в Spotify", "Виберіть активний пристрій у Spotify");
+    public static string StopSoundCloud => Pick("Stop SoundCloud playback", "Parar reprodução do SoundCloud",
+        "Остановить SoundCloud", "Зупинити SoundCloud");
+    public static string CatalogSearch => Pick("Catalog search", "Pesquisar no catálogo", "Поиск по каталогу", "Пошук у каталозі");
+    public static string SearchTracks => Pick("Find tracks", "Procurar faixas", "Найти треки", "Знайти треки");
+    public static string SearchPlaylists => Pick("Find playlists", "Procurar playlists", "Найти плейлисты", "Знайти плейлисти");
+    public static string SearchQuery => Pick("Track, artist, or playlist", "Faixa, artista ou playlist",
+        "Трек, исполнитель или плейлист", "Трек, виконавець або плейлист");
+    public static string SearchNeedQuery => Pick("Enter a search query", "Introduz uma pesquisa", "Введите запрос", "Введіть запит");
+    public static string BrowseLoading => Pick("Loading…", "A carregar…", "Загрузка…", "Завантаження…");
+    public static string BrowseEmpty => Pick("No results", "Sem resultados", "Нет результатов", "Немає результатів");
+    public static string BrowseFailed => Pick("Could not load results", "Não foi possível carregar os resultados",
+        "Не удалось загрузить результаты", "Не вдалося завантажити результати");
+    public static string ShowMore => Pick("Show more", "Mostrar mais", "Показать ещё", "Показати ще");
+    public static string PlayTrack => Pick("Play", "Reproduzir", "Воспроизвести", "Відтворити");
+    public static string AddToQueue => Pick("Add to queue", "Adicionar à fila", "Добавить в очередь", "Додати до черги");
+    public static string Queued => Pick("Added to queue", "Adicionado à fila", "Добавлено в очередь", "Додано до черги");
+    public static string QueueFailed => Pick("Could not add to queue", "Não foi possível adicionar à fila",
+        "Не удалось добавить в очередь", "Не вдалося додати до черги");
+    public static string SoundCloudQueue => Pick("SoundCloud queue", "Fila do SoundCloud", "Очередь SoundCloud", "Черга SoundCloud");
+    public static string MyLibrary => Pick("My library", "A minha biblioteca", "Моя медиатека", "Моя медіатека");
+    public static string MyPlaylists => Pick("My playlists", "As minhas playlists", "Мои плейлисты", "Мої плейлисти");
+    public static string SavedTracks => Pick("Saved tracks", "Faixas guardadas", "Сохранённые треки", "Збережені треки");
+    public static string LikedTracks => Pick("Liked tracks", "Faixas de que gosto", "Понравившиеся треки", "Вподобані треки");
+    public static string ConnectSoundCloud => Pick("Connect SoundCloud account", "Ligar conta SoundCloud",
+        "Подключить аккаунт SoundCloud", "Підключити обліковий запис SoundCloud");
+    public static string DisconnectSoundCloud => Pick("Disconnect SoundCloud account", "Desligar conta SoundCloud",
+        "Отключить аккаунт SoundCloud", "Відключити обліковий запис SoundCloud");
+    public static string AccountConnecting => Pick("Waiting for authorization…", "A aguardar autorização…",
+        "Ожидание подтверждения…", "Очікування підтвердження…");
+    public static string AccountConnectionFailed => Pick("Authorization failed. Try again.", "A autorização falhou. Tenta novamente.",
+        "Не удалось подключить аккаунт. Повторить.", "Не вдалося підключити обліковий запис. Спробувати ще раз.");
+    public static string OpenCatalogTrack(string platform) => Pick(
+        $"Open track in {platform}", $"Abrir faixa no {platform}",
+        $"Открыть трек в {platform}", $"Відкрити трек у {platform}");
+    public static string CatalogCredentials(string platform) => Pick(
+        $"Set {platform}_CLIENT_ID and {platform}_CLIENT_SECRET, then restart the widget.",
+        $"Define {platform}_CLIENT_ID e {platform}_CLIENT_SECRET e reinicia o widget.",
+        $"Задайте {platform}_CLIENT_ID и {platform}_CLIENT_SECRET и перезапустите виджет.",
+        $"Задайте {platform}_CLIENT_ID і {platform}_CLIENT_SECRET та перезапустіть віджет.");
+
     public static string MoveWidget => Pick(
         "Move widget", "Mover widget", "Переместить виджет", "Перемістити віджет");
     public static string MoveWidgetTip => Pick(

@@ -123,6 +123,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        SoundCloudPlayback.Stop();
         if (_trayIcon != null) _trayIcon.Visible = false;
         _trayIcon?.Dispose();
         _trayMenu?.Dispose();

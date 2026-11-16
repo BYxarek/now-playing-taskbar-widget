@@ -133,8 +133,11 @@
                                         <Border.Effect>
                                             <DropShadowEffect BlurRadius="18" ShadowDepth="3" Opacity="0.55"/>
                                         </Border.Effect>
-                                        <StackPanel IsItemsHost="True"
-                                                    KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                                        <ScrollViewer MaxHeight="400" VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Disabled">
+                                            <StackPanel IsItemsHost="True"
+                                                        KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                                        </ScrollViewer>
                                     </Border>
                                 </Popup>
                             </Grid>
@@ -264,6 +267,39 @@
                     <MenuItem x:Name="BtnNextMenu" Header="Next" IsCheckable="True" Click="Buttons_Click"/>
                     <MenuItem x:Name="BtnRepeatMenu" Header="Repeat" IsCheckable="True" Click="Buttons_Click"/>
                     <MenuItem x:Name="BtnVolumeMenu" Header="Volume" IsCheckable="True" Click="Buttons_Click"/>
+                </MenuItem>
+                <MenuItem x:Name="TrackCatalogMenu" Header="Track catalog">
+                    <MenuItem x:Name="WindowsCatalogMenu" IsCheckable="True" Click="TrackPlatform_Click"/>
+                    <MenuItem x:Name="SpotifyCatalogMenu" Header="Spotify" IsCheckable="True" Click="TrackPlatform_Click"/>
+                    <MenuItem x:Name="SoundCloudCatalogMenu" Header="SoundCloud" IsCheckable="True" Click="TrackPlatform_Click"/>
+                </MenuItem>
+                <MenuItem x:Name="OpenCatalogTrackMenu" Visibility="Collapsed" Click="OpenCatalogTrack_Click"/>
+                <MenuItem x:Name="PlaylistsMenu" Visibility="Collapsed" SubmenuOpened="Playlists_SubmenuOpened">
+                    <MenuItem x:Name="PlaylistsStatus" IsEnabled="False" ToolTipService.ShowOnDisabled="True"/>
+                </MenuItem>
+                <MenuItem x:Name="CatalogSearchMenu" Visibility="Collapsed">
+                    <MenuItem Focusable="False">
+                        <MenuItem.Header>
+                            <TextBox x:Name="CatalogQuery" Width="220" MaxLength="200" PreviewKeyDown="CatalogQuery_KeyDown"/>
+                        </MenuItem.Header>
+                    </MenuItem>
+                    <MenuItem x:Name="SearchTracksMenu" Click="SearchCatalog_Click"/>
+                    <MenuItem x:Name="SearchPlaylistsMenu" Click="SearchCatalog_Click"/>
+                    <MenuItem x:Name="SearchStatus" IsEnabled="False" Visibility="Collapsed"/>
+                </MenuItem>
+                <MenuItem x:Name="LibraryMenu" Visibility="Collapsed"/>
+                <MenuItem x:Name="CatalogAccountMenu" Visibility="Collapsed" Click="CatalogAccount_Click"/>
+                <MenuItem x:Name="SoundCloudQueueMenu" Visibility="Collapsed" SubmenuOpened="SoundCloudQueue_SubmenuOpened">
+                    <MenuItem IsEnabled="False"/>
+                </MenuItem>
+                <MenuItem x:Name="StopSoundCloudMenu" Visibility="Collapsed" Click="StopSoundCloud_Click"/>
+                <MenuItem x:Name="SoundCloudSourceMenu" Visibility="Collapsed" Click="SoundCloudSource_Click"
+                          StaysOpenOnClick="False" AutomationProperties.Name="SoundCloud">
+                    <MenuItem.Header>
+                        <Border Background="#121212" HorizontalAlignment="Left" Padding="5,3">
+                            <Image Source="/Assets/SoundCloudLogo.png" Width="38" Stretch="Uniform"/>
+                        </Border>
+                    </MenuItem.Header>
                 </MenuItem>
                 <MenuItem x:Name="ArtMenu" Header="Show cover art" IsCheckable="True" Click="Art_Click"/>
                 <MenuItem x:Name="ProgressMenu" Header="Progress bar" IsCheckable="True" Click="Progress_MenuClick"/>

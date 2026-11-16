@@ -173,6 +173,8 @@ public sealed class MediaService
     /// <summary>Quick timeline read (no track properties and no cover art).</summary>
     public (TimeSpan Position, TimeSpan Duration, bool IsPlaying, DateTime PositionAtUtc)? GetTimeline()
     {
+        if (SoundCloudPlayback.Read() is { } local)
+            return (local.Position, local.Duration, local.IsPlaying, local.PositionAtUtc);
         var s = _session;
         if (s == null) return null;
         try
@@ -193,6 +195,7 @@ public sealed class MediaService
 
     public async Task<TrackInfo?> GetTrackAsync(CancellationToken cancellationToken)
     {
+        if (SoundCloudPlayback.Read() is { } local) return local;
         var s = _session;
         if (s == null) return null;
         try
@@ -251,6 +254,7 @@ public sealed class MediaService
 
     public async Task TogglePlayPauseAsync()
     {
+        if (SoundCloudPlayback.Toggle()) return;
         var s = _session;
         if (s == null) return;
         try { await s.TryTogglePlayPauseAsync(); } catch { }
@@ -258,6 +262,7 @@ public sealed class MediaService
 
     public async Task NextAsync()
     {
+        if (SoundCloudPlayback.Current != null) return;
         var s = _session;
         if (s == null) return;
         try { await s.TrySkipNextAsync(); } catch { }
@@ -265,6 +270,7 @@ public sealed class MediaService
 
     public async Task PreviousAsync()
     {
+        if (SoundCloudPlayback.Current != null) return;
         var s = _session;
         if (s == null) return;
         try { await s.TrySkipPreviousAsync(); } catch { }
@@ -272,6 +278,7 @@ public sealed class MediaService
 
     public async Task SeekAsync(TimeSpan position)
     {
+        if (SoundCloudPlayback.Seek(position)) return;
         var s = _session;
         if (s == null) return;
         try { await s.TryChangePlaybackPositionAsync(position.Ticks); } catch { }
@@ -279,6 +286,7 @@ public sealed class MediaService
 
     public async Task CycleRepeatAsync()
     {
+        if (SoundCloudPlayback.Current != null) return;
         var s = _session;
         if (s == null) return;
         try
@@ -297,6 +305,7 @@ public sealed class MediaService
 
     public async Task ToggleShuffleAsync()
     {
+        if (SoundCloudPlayback.Current != null) return;
         var s = _session;
         if (s == null) return;
         try
@@ -305,5 +314,16 @@ public sealed class MediaService
             await s.TryChangeShuffleActiveAsync(!current);
         }
         catch { }
+    }
+
+    public Func<CancellationToken, Task> CaptureExternalPause()
+    {
+        var session = _session;
+        return async cancellationToken =>
+        {
+            if (session == null || !IsPlayingSession(session)) return;
+            try { await session.TryPauseAsync().AsTask(cancellationToken); }
+            catch (Exception ex) when (ex is not OperationCanceledException) { }
+        };
     }
 }

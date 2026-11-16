@@ -64,6 +64,8 @@ public class WidgetSettings
     /// the Windows one.</summary>
     public string Language { get; set; } = "";
 
+    public TrackPlatform TrackPlatform { get; set; }
+
     /// <summary>Extra gap (DIP, pre-scale) between the text column and the
     /// buttons, in fit-to-text mode. No effect at normal width: there the
     /// column stretches and there is no slack to give.</summary>
@@ -129,6 +131,7 @@ public class WidgetSettings
         {
             s = new WidgetSettings();
         }
+        if (!Enum.IsDefined(s.TrackPlatform)) s.TrackPlatform = TrackPlatform.Windows;
         s.Monitors = s.Monitors.Where(i => i >= 0).Distinct().OrderBy(i => i).ToList();
         int legacyMonitor = Math.Max(0, s.MonitorIndex);
         if (s.Monitors.Count == 0)

@@ -4,6 +4,19 @@ namespace SpotifyTaskbarWidget;
 
 internal static class SpotifyActions
 {
+    public static bool TryOpenPlaylist(string id)
+    {
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo($"spotify:playlist:{id}") { UseShellExecute = true });
+            return true;
+        }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            return false;
+        }
+    }
+
     public static bool IsRunning()
     {
         var processes = Process.GetProcessesByName("Spotify");

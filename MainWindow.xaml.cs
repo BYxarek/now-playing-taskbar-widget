@@ -103,6 +103,13 @@ public partial class MainWindow : Window
     private double _dragStartTop;
 
     private string _lastTrackKey = "";
+    private TrackPlatform _catalogPlatform;
+    private CatalogTrack? _catalogTrack;
+    private string _playlistArtist = "";
+    private TrackPlatform _playlistPlatform;
+    private int _playlistRequest;
+    private static bool _startingCatalogPlayback;
+    private TrackPlatform? _accountConnectionFailure;
     private bool _artDirty = true;
     private bool _refreshing;
     private bool _volLoading;
@@ -400,6 +407,17 @@ public partial class MainWindow : Window
         MonitorMenu.Header = L.MonitorMenu;
         SizeMenuItem.Header = L.SizeMenu;
         ArtMenu.Header = L.ShowArt;
+        TrackCatalogMenu.Header = L.TrackCatalog;
+        WindowsCatalogMenu.Header = L.WindowsMedia;
+        SpotifyCatalogMenu.ToolTip = TrackCatalog.Spotify.IsConfigured ? null : L.CatalogCredentials("SPOTIFY");
+        SoundCloudCatalogMenu.ToolTip = TrackCatalog.SoundCloud.IsConfigured ? null : L.CatalogCredentials("SOUNDCLOUD");
+        UpdateCatalogLink();
+        PlaylistsMenu.Header = L.Playlists(_settings.TrackPlatform.ToString());
+        PlaylistsMenu.Visibility = TrackCatalog.For(_settings.TrackPlatform) == null
+            ? Visibility.Collapsed : Visibility.Visible;
+        if (_playlistPlatform != _settings.TrackPlatform)
+            PlaylistsMenu.IsSubmenuOpen = false;
+        UpdatePlaybackMenu();
         AutoSizeMenu.Header = L.AutoSizeText;
         AutoSizeMenu.ToolTip = L.AutoSizeTextTip;
         TextPadMenuItem.Header = L.TextPadding;
@@ -551,6 +569,9 @@ public partial class MainWindow : Window
     /// at startup and whenever any window saves.</summary>
     private void ApplySettingsUi()
     {
+        WindowsCatalogMenu.IsChecked = _settings.TrackPlatform == TrackPlatform.Windows;
+        SpotifyCatalogMenu.IsChecked = _settings.TrackPlatform == TrackPlatform.Spotify;
+        SoundCloudCatalogMenu.IsChecked = _settings.TrackPlatform == TrackPlatform.SoundCloud;
         LauncherMenu.IsChecked = _settings.ShowLauncher;
         RightClickSpotifyMenu.IsChecked = _settings.OpenSpotifyOnRightClick;
         ProgressMenu.IsChecked = _settings.ShowProgress;
@@ -578,6 +599,10 @@ public partial class MainWindow : Window
 
     private void OnSettingsChanged()
     {
+        if (_settings.TrackPlatform != TrackPlatform.SoundCloud && _browsePlatform == TrackPlatform.SoundCloud)
+            SoundCloudPlayback.Stop();
+        if (_catalogPlatform != _settings.TrackPlatform || ArtMenu.IsChecked != _settings.ShowArt)
+            _artDirty = true;
         ApplySettingsUi();
         // Reposition only AFTER the layout settles: changing size/scale and
         // measuring the window in the same instant used the old dimensions and
@@ -1079,11 +1104,12 @@ public partial class MainWindow : Window
             return false;
 
         bool prev = false, next = false, like = false, shuffle = false, repeat = false, volume = false;
-        Take(ref prev, _settings.ShowPrev);
-        Take(ref next, _settings.ShowNext);
+        bool localSoundCloud = SoundCloudPlayback.Current != null;
+        Take(ref prev, _settings.ShowPrev && !localSoundCloud);
+        Take(ref next, _settings.ShowNext && (!localSoundCloud || SoundCloudPlayback.HasNext));
         Take(ref like, _settings.ShowLike && _spotifyControls);   // favorites: Spotify only
-        Take(ref shuffle, _settings.ShowShuffle);
-        Take(ref repeat, _settings.ShowRepeat);
+        Take(ref shuffle, _settings.ShowShuffle && !localSoundCloud);
+        Take(ref repeat, _settings.ShowRepeat && !localSoundCloud);
         Take(ref volume, _settings.ShowVolume && _spotifyControls); // internal volume: Spotify only
 
         // Maximum space the text column can take on this bar
@@ -1184,6 +1210,12 @@ public partial class MainWindow : Window
             // keep the current state on screen and re-check right away, instead
             // of flashing placeholders or hiding the widget
             bool noData = track == null || string.IsNullOrWhiteSpace(track.Title);
+            _playlistArtist = noData ? "" : track!.Artist.Trim();
+            if (noData && _catalogTrack != null)
+            {
+                _catalogTrack = null;
+                UpdateCatalogLink();
+            }
             if (noData && _lastTrackKey.Length > 0)
             {
                 if (_trackNullSince == DateTime.MinValue)
@@ -1286,6 +1318,12 @@ public partial class MainWindow : Window
             string key = track.Title + "|" + track.Artist;
             bool keyChanged = key != _lastTrackKey;
             _lastTrackKey = key;
+            if (keyChanged)
+            {
+                _catalogTrack = null;
+                _artDirty = true;
+                UpdateCatalogLink();
+            }
             if (!_spotifyControls)
                 _uiaState = (null, ShuffleMode.Unknown, RepeatMode.Unknown);
             if (_spotifyControls && (keyChanged || _uiaDirty || DateTime.UtcNow - _lastUiaStateAt > TimeSpan.FromSeconds(5)))
@@ -1333,21 +1371,41 @@ public partial class MainWindow : Window
 
             ApplyShuffleVisual(mode);
 
-            if (_settings.ShowArt && (keyChanged || _artDirty))
+            var platform = _settings.TrackPlatform;
+            var catalogTrack = default(CatalogTrack);
+            if (platform == TrackPlatform.SoundCloud && SoundCloudPlayback.Current?.Link is { } source)
+            {
+                catalogTrack = _catalogTrack?.Link == source ? _catalogTrack : new CatalogTrack(source, null);
+            }
+            else if (TrackCatalog.For(platform) is { } catalog)
+            {
+                using var catalogTimeout = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+                catalogTimeout.CancelAfter(TimeSpan.FromSeconds(3));
+                try
+                {
+                    catalogTrack = await catalog.FindAsync(track.Title, track.Artist, _settings.ShowArt, catalogTimeout.Token);
+                }
+                catch (OperationCanceledException) { }
+                if (_closed || platform != _settings.TrackPlatform) return;
+            }
+
+            if (platform != _catalogPlatform || !ReferenceEquals(catalogTrack, _catalogTrack))
+                _artDirty = true;
+            _catalogPlatform = platform;
+            _catalogTrack = catalogTrack;
+            UpdateCatalogLink();
+
+            if (_settings.ShowArt && _artDirty)
             {
                 _artDirty = false;
                 using var artTimeout = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
                 artTimeout.CancelAfter(TimeSpan.FromSeconds(5));
-                var bytes = track.Thumbnail == null
-                    ? null
-                    : await MediaService.GetThumbnailAsync(track.Thumbnail, artTimeout.Token);
-                if (_closed) return;
-                BitmapImage? art = null;
-                if (bytes != null)
+                BitmapImage? art = DecodeArtwork(catalogTrack?.Artwork);
+                if (art == null && track.Thumbnail != null)
                 {
-                    // Truncated/corrupt thumbnails happen on track transitions -
-                    // they must not blow up the whole refresh
-                    try { art = ToBitmap(bytes); } catch { }
+                    var bytes = await MediaService.GetThumbnailAsync(track.Thumbnail, artTimeout.Token);
+                    if (_closed || platform != _settings.TrackPlatform) return;
+                    art = DecodeArtwork(bytes);
                 }
                 SetAlbumArt(art);
             }
@@ -1356,6 +1414,229 @@ public partial class MainWindow : Window
         {
             _refreshing = false;
         }
+    }
+
+    private static BitmapImage? DecodeArtwork(byte[]? bytes)
+    {
+        try { return bytes == null ? null : ToBitmap(bytes); }
+        catch { return null; }
+    }
+
+    private void UpdateCatalogLink()
+    {
+        OpenCatalogTrackMenu.Header = L.OpenCatalogTrack(_catalogPlatform.ToString());
+        OpenCatalogTrackMenu.Visibility = _catalogTrack != null && _catalogPlatform == _settings.TrackPlatform
+            ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void TrackPlatform_Click(object sender, RoutedEventArgs e)
+    {
+        _settings.TrackPlatform = sender == SpotifyCatalogMenu ? TrackPlatform.Spotify
+            : sender == SoundCloudCatalogMenu ? TrackPlatform.SoundCloud : TrackPlatform.Windows;
+        _settings.Save();
+    }
+
+    private void OpenCatalogTrack_Click(object sender, RoutedEventArgs e)
+    {
+        if (_catalogTrack == null || _catalogPlatform != _settings.TrackPlatform) return;
+        OpenCatalogPage(_catalogTrack.Link);
+    }
+
+    private async void Playlists_SubmenuOpened(object sender, RoutedEventArgs e)
+    {
+        if (e.Source != PlaylistsMenu) return;
+        var platform = _playlistPlatform = _settings.TrackPlatform;
+        int request = ++_playlistRequest;
+        if (TrackCatalog.For(platform) is not { } catalog) return;
+
+        PlaylistsStatus.Visibility = Visibility.Visible;
+        PlaylistsStatus.ToolTip = null;
+        while (PlaylistsMenu.Items.Count > 1)
+            PlaylistsMenu.Items.RemoveAt(1);
+
+        if (!catalog.IsConfigured)
+        {
+            PlaylistsStatus.Header = L.PlaylistsNeedCredentials;
+            PlaylistsStatus.ToolTip = L.CatalogCredentials(platform.ToString().ToUpperInvariant());
+            return;
+        }
+
+        string artist = _playlistArtist;
+        if (artist.Length == 0)
+        {
+            PlaylistsStatus.Header = L.PlaylistsNeedArtist;
+            return;
+        }
+
+        PlaylistsStatus.Header = L.PlaylistsLoading;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        timeout.CancelAfter(TimeSpan.FromSeconds(5));
+        IReadOnlyList<CatalogPlaylist>? playlists = null;
+        try { playlists = await catalog.FindPlaylistsAsync(artist, timeout.Token); }
+        catch (OperationCanceledException) { }
+
+        if (_closed || request != _playlistRequest || platform != _settings.TrackPlatform ||
+            !PlaylistsMenu.IsSubmenuOpen) return;
+
+        if (playlists == null || playlists.Count == 0)
+        {
+            PlaylistsStatus.Header = playlists == null ? L.PlaylistsUnavailable : L.PlaylistsEmpty;
+            return;
+        }
+
+        PlaylistsStatus.Header = PlaylistLabel(artist);
+        foreach (var playlist in playlists)
+            PlaylistsMenu.Items.Add(BuildPlaylistMenu(playlist, catalog, platform));
+    }
+
+    private MenuItem BuildPlaylistMenu(CatalogPlaylist playlist, TrackCatalog catalog, TrackPlatform platform)
+    {
+        var item = new MenuItem { Header = PlaylistLabel(playlist.Title), ToolTip = playlist.Title };
+        System.Windows.Automation.AutomationProperties.SetName(item, playlist.Title);
+        var playbackStatus = new MenuItem { IsEnabled = false, Visibility = Visibility.Collapsed };
+        item.Items.Add(playbackStatus);
+        if (platform == TrackPlatform.Spotify && playlist.Id is { } id)
+        {
+            var play = new MenuItem { Header = L.PlayPlaylist };
+            play.Click += async (_, _) => await RunCatalogCommandAsync(platform, id, null, playbackStatus, enqueue: false);
+            item.Items.Add(play);
+            var open = new MenuItem { Header = L.OpenPlaylistInSpotify };
+            var openError = new MenuItem { Header = L.SpotifyAppUnavailable, IsEnabled = false, Visibility = Visibility.Collapsed };
+            open.Click += (_, _) =>
+            {
+                if (_settings.TrackPlatform == platform)
+                    openError.Visibility = SpotifyActions.TryOpenPlaylist(id) ? Visibility.Collapsed : Visibility.Visible;
+            };
+            item.Items.Add(open);
+            item.Items.Add(openError);
+        }
+
+        AddPagedSubmenu(item, platform, (next, token) => catalog.GetPlaylistTracksAsync(playlist, next, token),
+            track => BuildTrackMenu(track, platform), L.PlaylistTracksUnavailable);
+        return item;
+    }
+
+    private async Task RunCatalogCommandAsync(TrackPlatform platform, string id, PlaylistTrack? track, MenuItem status, bool enqueue)
+    {
+        if (_startingCatalogPlayback || _closed || platform != _settings.TrackPlatform)
+            return;
+
+        _startingCatalogPlayback = true;
+        status.Visibility = Visibility.Visible;
+        status.Header = L.StartingPlayback;
+        var result = CatalogPlaybackResult.Failed;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        timeout.CancelAfter(TimeSpan.FromSeconds(15));
+        try
+        {
+            if (platform == TrackPlatform.Spotify)
+            {
+                result = enqueue ? await SpotifyPlayback.EnqueueAsync(id, timeout.Token)
+                    : await SpotifyPlayback.PlayAsync(id, track == null, timeout.Token);
+            }
+            else if (track != null)
+            {
+                var pauseExternal = _media.CaptureExternalPause();
+                if (enqueue)
+                {
+                    SoundCloudPlayback.Enqueue(track);
+                    result = CatalogPlaybackResult.Started;
+                }
+                else if (await SoundCloudPlayback.PlayTrackAsync(track, pauseExternal, timeout.Token))
+                    result = CatalogPlaybackResult.Started;
+            }
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex) when (ex is COMException or InvalidOperationException)
+        {
+            Diag.Once("catalog-playback", "The catalog player failed to open the track.");
+        }
+        finally { _startingCatalogPlayback = false; }
+
+        if (_closed || platform != _settings.TrackPlatform) return;
+        status.Header = result switch
+        {
+            CatalogPlaybackResult.Started when enqueue => L.Queued,
+            CatalogPlaybackResult.ConnectSpotify => L.ConnectSpotify,
+            CatalogPlaybackResult.NoSpotifyDevice => L.SpotifyNoDevice,
+            _ => enqueue ? L.QueueFailed : L.PlaybackUnavailable,
+        };
+        status.Visibility = result == CatalogPlaybackResult.Started && !enqueue ? Visibility.Collapsed : Visibility.Visible;
+        foreach (var window in Instances)
+        {
+            window.UpdatePlaybackMenu();
+            _ = window.RefreshTrackAsync();
+        }
+    }
+
+    private void UpdatePlaybackMenu()
+    {
+        var platform = _settings.TrackPlatform;
+        var account = CatalogAccount.For(platform);
+        CatalogAccountMenu.Visibility = account == null ? Visibility.Collapsed : Visibility.Visible;
+        if (CatalogAccountMenu.IsEnabled && account != null)
+        {
+            CatalogAccountMenu.Header = platform == TrackPlatform.Spotify
+                ? (account.IsConnected ? L.DisconnectSpotify : L.ConnectSpotify)
+                : (account.IsConnected ? L.DisconnectSoundCloud : L.ConnectSoundCloud);
+            if (!account.IsConnected && _accountConnectionFailure == platform)
+                CatalogAccountMenu.Header = L.AccountConnectionFailed;
+        }
+        bool local = SoundCloudPlayback.Current != null;
+        SoundCloudQueueMenu.Header = L.SoundCloudQueue;
+        SoundCloudQueueMenu.Visibility = platform == TrackPlatform.SoundCloud && SoundCloudPlayback.HasNext
+            ? Visibility.Visible : Visibility.Collapsed;
+        StopSoundCloudMenu.Header = L.StopSoundCloud;
+        StopSoundCloudMenu.Visibility = local || SoundCloudPlayback.HasNext ? Visibility.Visible : Visibility.Collapsed;
+        SoundCloudSourceMenu.Visibility = local ? Visibility.Visible : Visibility.Collapsed;
+        UpdateCatalogBrowseMenus(platform, account);
+    }
+
+    private async void CatalogAccount_Click(object sender, RoutedEventArgs e)
+    {
+        var platform = _settings.TrackPlatform;
+        if (CatalogAccount.For(platform) is not { } account) return;
+        bool wasConnected = account.IsConnected;
+        _accountConnectionFailure = null;
+        CatalogAccountMenu.IsEnabled = false;
+        CatalogAccountMenu.Header = L.AccountConnecting;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(_lifetime.Token);
+        timeout.CancelAfter(wasConnected ? TimeSpan.FromSeconds(5) : TimeSpan.FromMinutes(2));
+        bool connected = false;
+        try
+        {
+            if (wasConnected) await account.DisconnectAsync(timeout.Token);
+            else connected = await account.ConnectAsync(timeout.Token);
+        }
+        catch (OperationCanceledException) { }
+        if (_closed) return;
+        if (!wasConnected && !connected) _accountConnectionFailure = platform;
+        CatalogAccountMenu.IsEnabled = true;
+        foreach (var window in Instances) window.UpdatePlaybackMenu();
+    }
+
+    private void StopSoundCloud_Click(object sender, RoutedEventArgs e)
+    {
+        SoundCloudPlayback.Stop();
+        foreach (var window in Instances)
+        {
+            window.UpdatePlaybackMenu();
+            _ = window.RefreshTrackAsync();
+        }
+    }
+
+    private void SoundCloudSource_Click(object sender, RoutedEventArgs e)
+    {
+        if (SoundCloudPlayback.Current?.Link is { } link) OpenCatalogPage(link);
+    }
+
+    private static TextBlock PlaylistLabel(string title) =>
+        new() { Text = title, MaxWidth = 280, TextTrimming = TextTrimming.CharacterEllipsis };
+
+    private static void OpenCatalogPage(Uri link)
+    {
+        try { using var process = Process.Start(new ProcessStartInfo(link.AbsoluteUri) { UseShellExecute = true }); }
+        catch (System.ComponentModel.Win32Exception) { }
     }
 
     /// <summary>Swaps the cover with a smooth crossfade: the new one fades in over
@@ -1503,7 +1784,11 @@ public partial class MainWindow : Window
         _basePositionAt = DateTime.UtcNow;
         await _media.TogglePlayPauseAsync();
     }
-    private async void Next_Click(object sender, RoutedEventArgs e) => await _media.NextAsync();
+    private async void Next_Click(object sender, RoutedEventArgs e)
+    {
+        if (SoundCloudPlayback.Current != null) await PlayNextSoundCloudAsync();
+        else await _media.NextAsync();
+    }
     private async void Prev_Click(object sender, RoutedEventArgs e) => await _media.PreviousAsync();
 
     private async void Shuffle_Click(object sender, RoutedEventArgs e)
@@ -1887,6 +2172,7 @@ public partial class MainWindow : Window
 
     private void PrepareContextMenu()
     {
+        UpdatePlaybackMenu();
         CaptureForeground();
         RebuildMonitorMenu();
         // Global state - another window (or Task Manager) may have changed it
