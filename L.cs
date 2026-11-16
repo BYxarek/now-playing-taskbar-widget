@@ -153,11 +153,20 @@ internal static class L
     public static string OpenCatalogTrack(string platform) => Pick(
         $"Open track in {platform}", $"Abrir faixa no {platform}",
         $"Открыть трек в {platform}", $"Відкрити трек у {platform}");
-    public static string CatalogCredentials(string platform) => Pick(
-        $"Set {platform}_CLIENT_ID and {platform}_CLIENT_SECRET, then restart the widget.",
-        $"Define {platform}_CLIENT_ID e {platform}_CLIENT_SECRET e reinicia o widget.",
-        $"Задайте {platform}_CLIENT_ID и {platform}_CLIENT_SECRET и перезапустите виджет.",
-        $"Задайте {platform}_CLIENT_ID і {platform}_CLIENT_SECRET та перезапустіть віджет.");
+    public static string CatalogSetupTitle(string platform) => Pick(
+        $"Set up {platform}", $"Configurar {platform}", $"Настройка {platform}", $"Налаштування {platform}");
+    public static string CatalogSetupHint(string platform) => Pick(
+        $"Copy the Client ID and Client Secret from your {platform} developer app. To connect your account, register the Redirect URI in that app.",
+        $"Copia o Client ID e o Client Secret da tua aplicação de programador {platform}. Para ligar a tua conta, regista o Redirect URI nessa aplicação.",
+        $"Скопируйте Client ID и Client Secret из своего приложения в кабинете разработчика {platform}. Для подключения аккаунта добавьте туда указанный Redirect URI.",
+        $"Скопіюйте Client ID і Client Secret зі свого застосунку в кабінеті розробника {platform}. Щоб підключити акаунт, додайте туди вказаний Redirect URI.");
+    public static string CatalogSaveFailed => Pick(
+        "Could not save credentials. Try again.", "Não foi possível guardar as credenciais. Tenta novamente.",
+        "Не удалось сохранить ключи. Попробуйте ещё раз.", "Не вдалося зберегти ключі. Спробуйте ще раз.");
+    public static string CatalogMusic => Pick("Music", "Música", "Музыка", "Музика");
+    public static string WidgetPosition => Pick("Widget position", "Posição do widget", "Положение виджета", "Розташування віджета");
+    public static string WidgetAppearance => Pick("Appearance", "Aspeto", "Внешний вид", "Зовнішній вигляд");
+    public static string WidgetBehavior => Pick("Behavior", "Comportamento", "Поведение", "Поведінка");
 
     public static string MoveWidget => Pick(
         "Move widget", "Mover widget", "Переместить виджет", "Перемістити віджет");

@@ -11,14 +11,12 @@ using System.Web;
 
 namespace SpotifyTaskbarWidget;
 
-internal sealed class CatalogAccount(TrackPlatform platform)
+internal sealed class CatalogAccount(TrackPlatform platform, string? clientId, string? clientSecret)
 {
     private const int CallbackPort = 43873;
-    public static readonly CatalogAccount Spotify = new(TrackPlatform.Spotify);
-    public static readonly CatalogAccount SoundCloud = new(TrackPlatform.SoundCloud);
     private bool IsSpotify => platform == TrackPlatform.Spotify;
     private string CallbackPath => IsSpotify ? "/spotify/callback" : "/soundcloud/callback";
-    private string RedirectUri => $"http://127.0.0.1:{CallbackPort}{CallbackPath}";
+    internal string RedirectUri => $"http://127.0.0.1:{CallbackPort}{CallbackPath}";
     private static readonly HttpClient Http = new(new HttpClientHandler { AllowAutoRedirect = false })
     {
         MaxResponseContentBufferSize = 64 * 1024,
@@ -28,14 +26,7 @@ internal sealed class CatalogAccount(TrackPlatform platform)
     private volatile AccountToken? _token;
     private int _connecting;
 
-    private string? ClientId => TrackCatalog.ReadCredential(platform, "CLIENT_ID");
-    private string? ClientSecret => TrackCatalog.ReadCredential(platform, "CLIENT_SECRET");
-    public static CatalogAccount? For(TrackPlatform platform) => platform switch
-    {
-        TrackPlatform.Spotify => Spotify,
-        TrackPlatform.SoundCloud => SoundCloud,
-        _ => null,
-    };
+    public static CatalogAccount? For(TrackPlatform platform) => TrackCatalog.For(platform)?.Account;
 
     public bool IsConnected => _token != null;
 
@@ -64,8 +55,7 @@ internal sealed class CatalogAccount(TrackPlatform platform)
 
     public async Task<bool> ConnectAsync(CancellationToken cancellationToken)
     {
-        var clientId = ClientId;
-        if (string.IsNullOrWhiteSpace(clientId) || (!IsSpotify && string.IsNullOrWhiteSpace(ClientSecret)) ||
+        if (string.IsNullOrWhiteSpace(clientId) || (!IsSpotify && string.IsNullOrWhiteSpace(clientSecret)) ||
             Interlocked.Exchange(ref _connecting, 1) != 0)
             return false;
 
@@ -129,7 +119,7 @@ internal sealed class CatalogAccount(TrackPlatform platform)
             if (token.Expires > DateTimeOffset.UtcNow) return token.Access;
             var refreshed = await ExchangeAsync(new()
             {
-                ["grant_type"] = "refresh_token", ["client_id"] = ClientId ?? "", ["refresh_token"] = token.Refresh,
+                ["grant_type"] = "refresh_token", ["client_id"] = clientId ?? "", ["refresh_token"] = token.Refresh,
             }, token.Refresh, cancellationToken).ConfigureAwait(false);
             return ReferenceEquals(Interlocked.CompareExchange(ref _token, refreshed, token), token) ? refreshed?.Access : null;
         }
@@ -139,7 +129,7 @@ internal sealed class CatalogAccount(TrackPlatform platform)
     private async Task<AccountToken?> ExchangeAsync(Dictionary<string, string> form, string? refresh,
         CancellationToken cancellationToken)
     {
-        if (!IsSpotify) form["client_secret"] = ClientSecret ?? "";
+        if (!IsSpotify) form["client_secret"] = clientSecret ?? "";
         var endpoint = IsSpotify ? "https://accounts.spotify.com/api/token" : "https://secure.soundcloud.com/oauth/token";
         using var content = new FormUrlEncodedContent(form);
         using var response = await Http.PostAsync(endpoint, content, cancellationToken).ConfigureAwait(false);

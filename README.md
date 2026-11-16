@@ -67,9 +67,10 @@ and browse your personal library after connecting an account.
 <details>
 <summary><strong>Set up API access and playback</strong></summary>
 
-Create an API app with the service you want to use. Add its Client ID and Client
-Secret as Windows **user environment variables**, then restart the widget and
-choose the service under **Track catalog**.
+Create an API app with the service you want to use. Choose **Spotify** or
+**SoundCloud** under **Track catalog**, enter the app's Client ID and Client
+Secret, and select **Save**. The widget applies the credentials immediately.
+It also supports existing Windows environment variables as a fallback.
 
 | Service | Environment variables | Account redirect URI |
 | --- | --- | --- |
@@ -77,8 +78,8 @@ choose the service under **Track catalog**.
 | [SoundCloud for Developers](https://developers.soundcloud.com/docs/api/register-app) | `SOUNDCLOUD_CLIENT_ID`, `SOUNDCLOUD_CLIENT_SECRET` | `http://127.0.0.1:43873/soundcloud/callback` |
 
 - **Spotify** sends playback and queue commands to your active Spotify Connect
-  device. Start Spotify, select a device, and choose **Connect Spotify account**
-  in the widget. Playback requires Premium. Development Mode restricts access
+  device. Start Spotify, select a device, and choose **Music → Connect Spotify
+  account** in the widget. Playback requires Premium. Development Mode restricts access
   to some playlist contents.
 - **SoundCloud** plays public, fully streamable tracks in the widget and keeps a
   local queue for the current session. Connect your account to browse personal

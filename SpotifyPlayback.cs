@@ -26,13 +26,14 @@ internal static class SpotifyPlayback
         using var request = new HttpRequestMessage(method, "https://api.spotify.com/v1/me/player/" + endpoint) { Content = content };
         try
         {
-            var token = await CatalogAccount.Spotify.GetTokenAsync(cancellationToken).ConfigureAwait(false);
+            var account = TrackCatalog.Spotify.Account;
+            var token = await account.GetTokenAsync(cancellationToken).ConfigureAwait(false);
             if (token == null) return CatalogPlaybackResult.ConnectSpotify;
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
             using var response = await Http.SendAsync(request, cancellationToken).ConfigureAwait(false);
             if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
-                CatalogAccount.Spotify.ForgetToken(token);
+                account.ForgetToken(token);
                 return CatalogPlaybackResult.ConnectSpotify;
             }
             if (response.StatusCode == HttpStatusCode.NotFound) return CatalogPlaybackResult.NoSpotifyDevice;

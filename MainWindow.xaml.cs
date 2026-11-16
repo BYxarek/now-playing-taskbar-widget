@@ -53,7 +53,7 @@ public partial class MainWindow : Window
     private static readonly List<MainWindow> Instances = new();
     private static bool _recreatePending;
     private static IntPtr _keyboardHook;
-    private static Interop.LowLevelKeyboardProc? _keyboardProc;
+    private static Interop.LowLevelHookProc? _keyboardProc;
     private static bool _hotkeyDown;
     private static bool _capsHotkeyUsed;
     private static bool _capturingHotkey;
@@ -404,10 +404,14 @@ public partial class MainWindow : Window
         MonitorMenu.Header = L.MonitorMenu;
         SizeMenuItem.Header = L.SizeMenu;
         ArtMenu.Header = L.ShowArt;
+        MusicMenu.Header = L.CatalogMusic;
+        PositionMenu.Header = L.WidgetPosition;
+        AppearanceMenu.Header = L.WidgetAppearance;
+        BehaviorMenu.Header = L.WidgetBehavior;
         TrackCatalogMenu.Header = L.TrackCatalog;
         WindowsCatalogMenu.Header = L.WindowsMedia;
-        SpotifyCatalogMenu.ToolTip = TrackCatalog.Spotify.IsConfigured ? null : L.CatalogCredentials("SPOTIFY");
-        SoundCloudCatalogMenu.ToolTip = TrackCatalog.SoundCloud.IsConfigured ? null : L.CatalogCredentials("SOUNDCLOUD");
+        SpotifyCatalogMenu.ToolTip = L.CatalogSetupTitle("Spotify");
+        SoundCloudCatalogMenu.ToolTip = L.CatalogSetupTitle("SoundCloud");
         UpdateCatalogLink();
         PlaylistsMenu.Header = L.Playlists(_settings.TrackPlatform.ToString());
         PlaylistsMenu.Visibility = TrackCatalog.For(_settings.TrackPlatform) == null
@@ -562,13 +566,18 @@ public partial class MainWindow : Window
         await RefreshTrackAsync();
     }
 
-    /// <summary>UI state mirroring the shared settings (menus, scale) - called
-    /// at startup and whenever any window saves.</summary>
-    private void ApplySettingsUi()
+    private void UpdateTrackPlatformChecks()
     {
         WindowsCatalogMenu.IsChecked = _settings.TrackPlatform == TrackPlatform.Windows;
         SpotifyCatalogMenu.IsChecked = _settings.TrackPlatform == TrackPlatform.Spotify;
         SoundCloudCatalogMenu.IsChecked = _settings.TrackPlatform == TrackPlatform.SoundCloud;
+    }
+
+    /// <summary>UI state mirroring the shared settings (menus, scale) - called
+    /// at startup and whenever any window saves.</summary>
+    private void ApplySettingsUi()
+    {
+        UpdateTrackPlatformChecks();
         LauncherMenu.IsChecked = _settings.ShowLauncher;
         RightClickSpotifyMenu.IsChecked = _settings.OpenSpotifyOnRightClick;
         ProgressMenu.IsChecked = _settings.ShowProgress;
@@ -1383,7 +1392,7 @@ public partial class MainWindow : Window
                     catalogTrack = await catalog.FindAsync(track.Title, track.Artist, _settings.ShowArt, catalogTimeout.Token);
                 }
                 catch (OperationCanceledException) { }
-                if (_closed || platform != _settings.TrackPlatform) return;
+                if (_closed || platform != _settings.TrackPlatform || catalog != TrackCatalog.For(platform)) return;
             }
 
             if (platform != _catalogPlatform || !ReferenceEquals(catalogTrack, _catalogTrack))
@@ -1428,8 +1437,17 @@ public partial class MainWindow : Window
 
     private void TrackPlatform_Click(object sender, RoutedEventArgs e)
     {
-        _settings.TrackPlatform = sender == SpotifyCatalogMenu ? TrackPlatform.Spotify
+        var platform = sender == SpotifyCatalogMenu ? TrackPlatform.Spotify
             : sender == SoundCloudCatalogMenu ? TrackPlatform.SoundCloud : TrackPlatform.Windows;
+        if (TrackCatalog.For(platform) is { } catalog)
+        {
+            Root.ContextMenu.IsOpen = false;
+            UpdateTrackPlatformChecks();
+            if (!PromptForCatalogCredentials(platform, catalog) || _closed) return;
+            if (catalog != TrackCatalog.For(platform))
+                foreach (var window in Instances) window._accountConnectionFailure = null;
+        }
+        _settings.TrackPlatform = platform;
         _settings.Save();
     }
 
@@ -1454,7 +1472,7 @@ public partial class MainWindow : Window
         if (!catalog.IsConfigured)
         {
             PlaylistsStatus.Header = L.PlaylistsNeedCredentials;
-            PlaylistsStatus.ToolTip = L.CatalogCredentials(platform.ToString().ToUpperInvariant());
+            PlaylistsStatus.ToolTip = L.CatalogSetupTitle(platform.ToString());
             return;
         }
 
@@ -1570,6 +1588,7 @@ public partial class MainWindow : Window
     {
         var platform = _settings.TrackPlatform;
         var account = CatalogAccount.For(platform);
+        MusicMenu.Visibility = account == null ? Visibility.Collapsed : Visibility.Visible;
         CatalogAccountMenu.Visibility = account == null ? Visibility.Collapsed : Visibility.Visible;
         if (CatalogAccountMenu.IsEnabled && account != null)
         {
@@ -1607,7 +1626,7 @@ public partial class MainWindow : Window
         }
         catch (OperationCanceledException) { }
         if (_closed) return;
-        if (!wasConnected && !connected) _accountConnectionFailure = platform;
+        if (!wasConnected && !connected && account == CatalogAccount.For(platform)) _accountConnectionFailure = platform;
         CatalogAccountMenu.IsEnabled = true;
         foreach (var window in Instances) window.UpdatePlaybackMenu();
     }
@@ -2270,7 +2289,58 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ContextMenu_Closed(object sender, RoutedEventArgs e) => RestoreForeground();
+    private IntPtr _menuMouseHook;
+    private Interop.LowLevelHookProc? _menuMouseProc;
+
+    private void ContextMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        var menu = (ContextMenu)sender;
+        // The taskbar widget never activates and controls in the menu can take mouse capture.
+        _menuMouseProc ??= (code, message, data) =>
+        {
+            if (code >= 0 && (int)message is Interop.WM_LBUTTONDOWN or Interop.WM_RBUTTONDOWN
+                or Interop.WM_MBUTTONDOWN or Interop.WM_XBUTTONDOWN)
+            {
+                // MSLLHOOKSTRUCT begins with the click's screen coordinates.
+                var point = Marshal.PtrToStructure<Interop.POINT>(data);
+                Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
+                {
+                    if (menu.IsOpen && !MenuContainsPoint(menu, new Point(point.X, point.Y)))
+                        menu.IsOpen = false;
+                });
+            }
+            return Interop.CallNextHookEx(IntPtr.Zero, code, message, data);
+        };
+        _menuMouseHook = Interop.SetWindowsHookEx(Interop.WH_MOUSE_LL, _menuMouseProc, Interop.GetModuleHandle(null), 0);
+    }
+
+    private static bool MenuContainsPoint(ItemsControl menu, Point screenPoint)
+    {
+        var surface = menu is MenuItem item
+            ? (item.Template?.FindName("PART_Popup", item) as Popup)?.Child
+            : VisualTreeHelper.GetChildrenCount(menu) > 0 ? VisualTreeHelper.GetChild(menu, 0) as UIElement : null;
+        if (surface != null && PresentationSource.FromVisual(surface) != null &&
+            new Rect(surface.RenderSize).Contains(surface.PointFromScreen(screenPoint)))
+            return true;
+
+        foreach (var submenu in menu.Items.OfType<MenuItem>())
+            if (submenu.IsSubmenuOpen && MenuContainsPoint(submenu, screenPoint))
+                return true;
+        return false;
+    }
+
+    private void StopMenuMouseHook()
+    {
+        if (_menuMouseHook == IntPtr.Zero) return;
+        Interop.UnhookWindowsHookEx(_menuMouseHook);
+        _menuMouseHook = IntPtr.Zero;
+    }
+
+    private void ContextMenu_Closed(object sender, RoutedEventArgs e)
+    {
+        StopMenuMouseHook();
+        RestoreForeground();
+    }
 
     private void CaptureForeground()
     {
@@ -2956,6 +3026,7 @@ public partial class MainWindow : Window
         _closed = true;
         _lifetime.Cancel();
         _lifetime.Dispose();
+        StopMenuMouseHook();
         _volPopupWatchdog?.Stop();
         _positionTimer.Stop();
         _trackTimer.Stop();

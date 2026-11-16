@@ -19,7 +19,9 @@ Now Playing - Taskbar Widget has no analytics, telemetry, or widget accounts.
   Selecting a playable SoundCloud track requests and plays its audio stream.
   These requests are governed by [Spotify's privacy policy](https://www.spotify.com/legal/privacy-policy/)
   or [SoundCloud's privacy policy](https://soundcloud.com/pages/privacy).
-- API app credentials are supplied through environment variables. Access
+- API app credentials entered in the widget are encrypted with Windows Data
+  Protection (DPAPI) and stored in the current user's registry. The widget
+  also supports credentials supplied through environment variables. Access
   tokens and catalog lookup results are kept in memory.
 - Connecting an account opens the platform's authorization page in your
   browser. The local callback listens on `127.0.0.1` only while authorization

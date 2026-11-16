@@ -106,7 +106,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="MenuItem">
-                        <Border x:Name="bg" CornerRadius="5" Background="Transparent" Padding="9,7">
+                        <Border x:Name="bg" CornerRadius="5" Background="Transparent" Padding="7,4">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="22"/>
@@ -169,7 +169,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Separator">
-                        <Rectangle Height="1" Fill="#3F3F3F" Margin="6,4"/>
+                        <Rectangle Height="1" Fill="#3F3F3F" Margin="6,3"/>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -230,104 +230,113 @@
             PreviewMouseRightButtonUp="Root_MouseRightButtonUp"
             ContextMenuOpening="Root_ContextMenuOpening">
         <Border.ContextMenu>
-            <ContextMenu StaysOpen="False" Closed="ContextMenu_Closed">
-                <MenuItem x:Name="MoveMenu" Header="Move widget" IsCheckable="True" Click="MoveMode_Click"
-                          ToolTip="Drag the widget wherever you want; untick to lock it in place"/>
-                <MenuItem x:Name="ResetPosMenu" Header="Reset to automatic position" Click="ResetPos_Click"/>
-                <MenuItem x:Name="MonitorMenu" Header="Monitor"/>
-                <MenuItem x:Name="SizeMenuItem" Header="Size">
-                    <MenuItem x:Name="SizeSmall" Header="Small" IsCheckable="True" Click="Size_Click" Tag="0.8"/>
-                    <MenuItem x:Name="SizeNormal" Header="Normal" IsCheckable="True" Click="Size_Click" Tag="1.0"/>
-                    <MenuItem x:Name="SizeLarge" Header="Large" IsCheckable="True" Click="Size_Click" Tag="1.1"/>
-                </MenuItem>
-                <MenuItem x:Name="FontMenuItem" Header="Font"/>
-                <MenuItem x:Name="LanguageMenuItem" Header="Language"/>
-                <MenuItem x:Name="OpacityMenuItem" Header="Brightness">
-                    <!-- Continuous slider (OLED community request); a 20% minimum
-                         so the widget can never become invisible and unreachable -->
-                    <MenuItem x:Name="OpacitySliderItem">
-                        <MenuItem.Header>
-                            <StackPanel Orientation="Horizontal">
-                                <Slider x:Name="OpacitySlider" Style="{StaticResource SpotifySlider}" Width="110"
-                                        Minimum="20" Maximum="100" SmallChange="5" LargeChange="10"
-                                        IsMoveToPointEnabled="True" VerticalAlignment="Center"
-                                        ValueChanged="OpacitySlider_ValueChanged"
-                                        MouseWheel="Opacity_MouseWheel"/>
-                                <TextBlock x:Name="OpacityValueText" Text="100%" Foreground="White"
-                                           Margin="8,0,0,0" Width="36" VerticalAlignment="Center"/>
-                            </StackPanel>
-                        </MenuItem.Header>
-                    </MenuItem>
-                </MenuItem>
-                <MenuItem x:Name="ButtonsMenuItem" Header="Buttons">
-                    <MenuItem x:Name="BtnPlayMenu" Header="Play/Pause" IsCheckable="True" Click="Buttons_Click"/>
-                    <MenuItem x:Name="BtnLikeMenu" Header="Add to favorites (+)" IsCheckable="True" Click="Buttons_Click"/>
-                    <MenuItem x:Name="BtnShuffleMenu" Header="Shuffle" IsCheckable="True" Click="Buttons_Click"/>
-                    <MenuItem x:Name="BtnPrevMenu" Header="Previous" IsCheckable="True" Click="Buttons_Click"/>
-                    <MenuItem x:Name="BtnNextMenu" Header="Next" IsCheckable="True" Click="Buttons_Click"/>
-                    <MenuItem x:Name="BtnRepeatMenu" Header="Repeat" IsCheckable="True" Click="Buttons_Click"/>
-                    <MenuItem x:Name="BtnVolumeMenu" Header="Volume" IsCheckable="True" Click="Buttons_Click"/>
-                </MenuItem>
+            <ContextMenu StaysOpen="False" Opened="ContextMenu_Opened" Closed="ContextMenu_Closed">
                 <MenuItem x:Name="TrackCatalogMenu" Header="Track catalog">
                     <MenuItem x:Name="WindowsCatalogMenu" IsCheckable="True" Click="TrackPlatform_Click"/>
                     <MenuItem x:Name="SpotifyCatalogMenu" Header="Spotify" IsCheckable="True" Click="TrackPlatform_Click"/>
                     <MenuItem x:Name="SoundCloudCatalogMenu" Header="SoundCloud" IsCheckable="True" Click="TrackPlatform_Click"/>
                 </MenuItem>
-                <MenuItem x:Name="OpenCatalogTrackMenu" Visibility="Collapsed" Click="OpenCatalogTrack_Click"/>
-                <MenuItem x:Name="PlaylistsMenu" Visibility="Collapsed" SubmenuOpened="Playlists_SubmenuOpened">
-                    <MenuItem x:Name="PlaylistsStatus" IsEnabled="False" ToolTipService.ShowOnDisabled="True"/>
-                </MenuItem>
-                <MenuItem x:Name="CatalogSearchMenu" Visibility="Collapsed">
-                    <MenuItem Focusable="False">
-                        <MenuItem.Header>
-                            <TextBox x:Name="CatalogQuery" Width="220" MaxLength="200" PreviewKeyDown="CatalogQuery_KeyDown"/>
-                        </MenuItem.Header>
+                <MenuItem x:Name="MusicMenu">
+                    <MenuItem x:Name="OpenCatalogTrackMenu" Visibility="Collapsed" Click="OpenCatalogTrack_Click"/>
+                    <MenuItem x:Name="PlaylistsMenu" Visibility="Collapsed" SubmenuOpened="Playlists_SubmenuOpened">
+                        <MenuItem x:Name="PlaylistsStatus" IsEnabled="False" ToolTipService.ShowOnDisabled="True"/>
                     </MenuItem>
-                    <MenuItem x:Name="SearchTracksMenu" Click="SearchCatalog_Click"/>
-                    <MenuItem x:Name="SearchPlaylistsMenu" Click="SearchCatalog_Click"/>
-                    <MenuItem x:Name="SearchStatus" IsEnabled="False" Visibility="Collapsed"/>
-                </MenuItem>
-                <MenuItem x:Name="LibraryMenu" Visibility="Collapsed"/>
-                <MenuItem x:Name="CatalogAccountMenu" Visibility="Collapsed" Click="CatalogAccount_Click"/>
-                <MenuItem x:Name="SoundCloudQueueMenu" Visibility="Collapsed" SubmenuOpened="SoundCloudQueue_SubmenuOpened">
-                    <MenuItem IsEnabled="False"/>
-                </MenuItem>
-                <MenuItem x:Name="StopSoundCloudMenu" Visibility="Collapsed" Click="StopSoundCloud_Click"/>
-                <MenuItem x:Name="SoundCloudSourceMenu" Visibility="Collapsed" Click="SoundCloudSource_Click"
-                          StaysOpenOnClick="False" AutomationProperties.Name="SoundCloud">
-                    <MenuItem.Header>
-                        <Border Background="#121212" HorizontalAlignment="Left" Padding="5,3">
-                            <Image Source="/Assets/SoundCloudLogo.png" Width="38" Stretch="Uniform"/>
-                        </Border>
-                    </MenuItem.Header>
-                </MenuItem>
-                <MenuItem x:Name="ArtMenu" Header="Show cover art" IsCheckable="True" Click="Art_Click"/>
-                <MenuItem x:Name="ProgressMenu" Header="Progress bar" IsCheckable="True" Click="Progress_MenuClick"/>
-                <MenuItem x:Name="ScrollOnceMenu" Header="Scroll title only once" IsCheckable="True" Click="ScrollOnce_Click"/>
-                <MenuItem x:Name="AutoSizeMenu" Header="Shrink width to fit text" IsCheckable="True" Click="AutoSize_Click"/>
-                <!-- Gap between the text and the buttons; only meaningful with
-                     fit-to-text width on, otherwise the column stretches anyway -->
-                <MenuItem x:Name="TextPadMenuItem" Header="Gap after text">
-                    <MenuItem x:Name="TextPadSliderItem">
+                    <MenuItem x:Name="CatalogSearchMenu" Visibility="Collapsed">
+                        <MenuItem Focusable="False">
+                            <MenuItem.Header>
+                                <TextBox x:Name="CatalogQuery" Width="220" MaxLength="200" PreviewKeyDown="CatalogQuery_KeyDown"/>
+                            </MenuItem.Header>
+                        </MenuItem>
+                        <MenuItem x:Name="SearchTracksMenu" Click="SearchCatalog_Click"/>
+                        <MenuItem x:Name="SearchPlaylistsMenu" Click="SearchCatalog_Click"/>
+                        <MenuItem x:Name="SearchStatus" IsEnabled="False" Visibility="Collapsed"/>
+                    </MenuItem>
+                    <MenuItem x:Name="LibraryMenu" Visibility="Collapsed"/>
+                    <MenuItem x:Name="CatalogAccountMenu" Visibility="Collapsed" Click="CatalogAccount_Click"/>
+                    <MenuItem x:Name="SoundCloudQueueMenu" Visibility="Collapsed" SubmenuOpened="SoundCloudQueue_SubmenuOpened">
+                        <MenuItem IsEnabled="False"/>
+                    </MenuItem>
+                    <MenuItem x:Name="StopSoundCloudMenu" Visibility="Collapsed" Click="StopSoundCloud_Click"/>
+                    <MenuItem x:Name="SoundCloudSourceMenu" Visibility="Collapsed" Click="SoundCloudSource_Click"
+                              StaysOpenOnClick="False" AutomationProperties.Name="SoundCloud">
                         <MenuItem.Header>
-                            <StackPanel Orientation="Horizontal">
-                                <Slider x:Name="TextPadSlider" Style="{StaticResource SpotifySlider}" Width="110"
-                                        Minimum="0" Maximum="40" SmallChange="2" LargeChange="5"
-                                        IsMoveToPointEnabled="True" VerticalAlignment="Center"
-                                        ValueChanged="TextPadSlider_ValueChanged"
-                                        MouseWheel="TextPad_MouseWheel"/>
-                                <TextBlock x:Name="TextPadValueText" Text="0 px" Foreground="White"
-                                           Margin="8,0,0,0" Width="36" VerticalAlignment="Center"/>
-                            </StackPanel>
+                            <Border Background="#121212" HorizontalAlignment="Left" Padding="5,3">
+                                <Image Source="/Assets/SoundCloudLogo.png" Width="38" Stretch="Uniform"/>
+                            </Border>
                         </MenuItem.Header>
                     </MenuItem>
                 </MenuItem>
-                <MenuItem x:Name="LauncherMenu" Header="Show button to open Spotify" IsCheckable="True"
-                          Click="Launcher_Click"
-                          ToolTip="When Spotify is closed, show a button to open it instead of hiding the widget"/>
-                <MenuItem x:Name="RightClickSpotifyMenu" IsCheckable="True" Click="RightClickSpotify_Click"/>
                 <Separator/>
-                <MenuItem x:Name="AutoStartMenu" Header="Start with Windows" IsCheckable="True" Click="AutoStart_Click"/>
+                <MenuItem x:Name="PositionMenu">
+                    <MenuItem x:Name="MoveMenu" Header="Move widget" IsCheckable="True" Click="MoveMode_Click"
+                              ToolTip="Drag the widget wherever you want; untick to lock it in place"/>
+                    <MenuItem x:Name="ResetPosMenu" Header="Reset to automatic position" Click="ResetPos_Click"/>
+                    <MenuItem x:Name="MonitorMenu" Header="Monitor"/>
+                </MenuItem>
+                <MenuItem x:Name="AppearanceMenu">
+                    <MenuItem x:Name="SizeMenuItem" Header="Size">
+                        <MenuItem x:Name="SizeSmall" Header="Small" IsCheckable="True" Click="Size_Click" Tag="0.8"/>
+                        <MenuItem x:Name="SizeNormal" Header="Normal" IsCheckable="True" Click="Size_Click" Tag="1.0"/>
+                        <MenuItem x:Name="SizeLarge" Header="Large" IsCheckable="True" Click="Size_Click" Tag="1.1"/>
+                    </MenuItem>
+                    <MenuItem x:Name="FontMenuItem" Header="Font"/>
+                    <MenuItem x:Name="OpacityMenuItem" Header="Brightness">
+                        <!-- Continuous slider (OLED community request); a 20% minimum
+                             so the widget can never become invisible and unreachable -->
+                        <MenuItem x:Name="OpacitySliderItem">
+                            <MenuItem.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <Slider x:Name="OpacitySlider" Style="{StaticResource SpotifySlider}" Width="110"
+                                            Minimum="20" Maximum="100" SmallChange="5" LargeChange="10"
+                                            IsMoveToPointEnabled="True" VerticalAlignment="Center"
+                                            ValueChanged="OpacitySlider_ValueChanged"
+                                            MouseWheel="Opacity_MouseWheel"/>
+                                    <TextBlock x:Name="OpacityValueText" Text="100%" Foreground="White"
+                                               Margin="8,0,0,0" Width="36" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </MenuItem.Header>
+                        </MenuItem>
+                    </MenuItem>
+                    <MenuItem x:Name="ButtonsMenuItem" Header="Buttons">
+                        <MenuItem x:Name="BtnPlayMenu" Header="Play/Pause" IsCheckable="True" Click="Buttons_Click"/>
+                        <MenuItem x:Name="BtnLikeMenu" Header="Add to favorites (+)" IsCheckable="True" Click="Buttons_Click"/>
+                        <MenuItem x:Name="BtnShuffleMenu" Header="Shuffle" IsCheckable="True" Click="Buttons_Click"/>
+                        <MenuItem x:Name="BtnPrevMenu" Header="Previous" IsCheckable="True" Click="Buttons_Click"/>
+                        <MenuItem x:Name="BtnNextMenu" Header="Next" IsCheckable="True" Click="Buttons_Click"/>
+                        <MenuItem x:Name="BtnRepeatMenu" Header="Repeat" IsCheckable="True" Click="Buttons_Click"/>
+                        <MenuItem x:Name="BtnVolumeMenu" Header="Volume" IsCheckable="True" Click="Buttons_Click"/>
+                    </MenuItem>
+                    <MenuItem x:Name="ArtMenu" Header="Show cover art" IsCheckable="True" Click="Art_Click"/>
+                    <MenuItem x:Name="ProgressMenu" Header="Progress bar" IsCheckable="True" Click="Progress_MenuClick"/>
+                    <MenuItem x:Name="ScrollOnceMenu" Header="Scroll title only once" IsCheckable="True" Click="ScrollOnce_Click"/>
+                    <MenuItem x:Name="AutoSizeMenu" Header="Shrink width to fit text" IsCheckable="True" Click="AutoSize_Click"/>
+                    <!-- Gap between the text and the buttons; only meaningful with
+                         fit-to-text width on, otherwise the column stretches anyway -->
+                    <MenuItem x:Name="TextPadMenuItem" Header="Gap after text">
+                        <MenuItem x:Name="TextPadSliderItem">
+                            <MenuItem.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <Slider x:Name="TextPadSlider" Style="{StaticResource SpotifySlider}" Width="110"
+                                            Minimum="0" Maximum="40" SmallChange="2" LargeChange="5"
+                                            IsMoveToPointEnabled="True" VerticalAlignment="Center"
+                                            ValueChanged="TextPadSlider_ValueChanged"
+                                            MouseWheel="TextPad_MouseWheel"/>
+                                    <TextBlock x:Name="TextPadValueText" Text="0 px" Foreground="White"
+                                               Margin="8,0,0,0" Width="36" VerticalAlignment="Center"/>
+                                </StackPanel>
+                            </MenuItem.Header>
+                        </MenuItem>
+                    </MenuItem>
+                </MenuItem>
+                <MenuItem x:Name="BehaviorMenu">
+                    <MenuItem x:Name="LanguageMenuItem" Header="Language"/>
+                    <MenuItem x:Name="LauncherMenu" Header="Show button to open Spotify" IsCheckable="True"
+                              Click="Launcher_Click"
+                              ToolTip="When Spotify is closed, show a button to open it instead of hiding the widget"/>
+                    <MenuItem x:Name="RightClickSpotifyMenu" IsCheckable="True" Click="RightClickSpotify_Click"/>
+                    <MenuItem x:Name="AutoStartMenu" Header="Start with Windows" IsCheckable="True" Click="AutoStart_Click"/>
+                </MenuItem>
+                <Separator/>
                 <MenuItem x:Name="UpdatesMenu" Visibility="Collapsed">
                     <MenuItem x:Name="UpdateStatusMenu" IsEnabled="False"/>
                     <MenuItem x:Name="CheckUpdatesMenu" Click="CheckUpdates_Click"/>

@@ -2,8 +2,10 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Microsoft.Win32;
 
 namespace SpotifyTaskbarWidget;
 
@@ -14,8 +16,9 @@ internal sealed record CatalogPlaylist(string Title, string? Id, bool FromLibrar
 internal sealed record PlaylistTrack(string Title, string Artist, string? Id, Uri? Link, string? Uploader, Uri? Artwork);
 internal sealed record CatalogPage<T>(IReadOnlyList<T> Items, Uri? Next);
 
-internal sealed class TrackCatalog(TrackPlatform platform)
+internal sealed class TrackCatalog(TrackPlatform platform, string? clientId, string? clientSecret)
 {
+    private const string CredentialsKey = @"Software\SpotifyTaskbarWidget\Catalog";
     private const int PlaylistLimit = 5;
     private const int PlaylistTrackLimit = 10;
     private static readonly HttpClient Http = new(new HttpClientHandler { AllowAutoRedirect = false })
@@ -23,8 +26,10 @@ internal sealed class TrackCatalog(TrackPlatform platform)
         MaxResponseContentBufferSize = 4 * 1024 * 1024,
     };
 
-    public static readonly TrackCatalog Spotify = new(TrackPlatform.Spotify);
-    public static readonly TrackCatalog SoundCloud = new(TrackPlatform.SoundCloud);
+    private static volatile TrackCatalog _spotify = Load(TrackPlatform.Spotify);
+    private static volatile TrackCatalog _soundCloud = Load(TrackPlatform.SoundCloud);
+    public static TrackCatalog Spotify => _spotify;
+    public static TrackCatalog SoundCloud => _soundCloud;
 
     private readonly SemaphoreSlim _gate = new(1);
     private string? _accessToken;
@@ -37,11 +42,52 @@ internal sealed class TrackCatalog(TrackPlatform platform)
     private (string Artist, DateTimeOffset Expires, IReadOnlyList<CatalogPlaylist> Items)? _playlistCache;
 
     private bool IsSpotify => platform == TrackPlatform.Spotify;
-    private readonly string? _clientId = ReadCredential(platform, "CLIENT_ID");
-    private readonly string? _clientSecret = ReadCredential(platform, "CLIENT_SECRET");
-    public bool IsConfigured => !string.IsNullOrWhiteSpace(_clientId) && !string.IsNullOrWhiteSpace(_clientSecret);
+    public string? ClientId { get; } = clientId;
+    public string? ClientSecret { get; } = clientSecret;
+    public CatalogAccount Account { get; } = new(platform, clientId, clientSecret);
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(ClientId) && !string.IsNullOrWhiteSpace(ClientSecret);
 
-    internal static string? ReadCredential(TrackPlatform platform, string name)
+    private static TrackCatalog Load(TrackPlatform platform)
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(CredentialsKey);
+            if (key?.GetValue(platform.ToString()) is byte[] encrypted &&
+                JsonSerializer.Deserialize<string[]>(ProtectedData.Unprotect(encrypted, null, DataProtectionScope.CurrentUser))
+                    is [string id, string secret] && !string.IsNullOrWhiteSpace(id) && !string.IsNullOrWhiteSpace(secret))
+                return new(platform, id, secret);
+        }
+        catch (Exception ex) when (ex is CryptographicException or JsonException or UnauthorizedAccessException or
+            System.Security.SecurityException or System.IO.IOException)
+        {
+            Diag.Once($"catalog-load-{platform}", $"Could not load saved {platform} credentials.");
+        }
+        return new(platform, ReadCredential(platform, "CLIENT_ID"), ReadCredential(platform, "CLIENT_SECRET"));
+    }
+
+    public bool TrySaveCredentials(string id, string secret)
+    {
+        if (string.IsNullOrWhiteSpace(id) || string.IsNullOrWhiteSpace(secret)) return false;
+        if (ClientId == id && ClientSecret == secret) return true;
+        try
+        {
+            var encrypted = ProtectedData.Protect(JsonSerializer.SerializeToUtf8Bytes(new[] { id, secret }),
+                null, DataProtectionScope.CurrentUser);
+            using var key = Registry.CurrentUser.CreateSubKey(CredentialsKey);
+            key.SetValue(platform.ToString(), encrypted, RegistryValueKind.Binary);
+        }
+        catch (Exception ex) when (ex is CryptographicException or UnauthorizedAccessException or
+            System.Security.SecurityException or System.IO.IOException)
+        {
+            Diag.Once($"catalog-save-{platform}", $"Could not save {platform} credentials.");
+            return false;
+        }
+        if (IsSpotify) _spotify = new(platform, id, secret);
+        else _soundCloud = new(platform, id, secret);
+        return true;
+    }
+
+    private static string? ReadCredential(TrackPlatform platform, string name)
     {
         string key = $"{platform.ToString().ToUpperInvariant()}_{name}";
         return Environment.GetEnvironmentVariable(key)
@@ -198,14 +244,13 @@ internal sealed class TrackCatalog(TrackPlatform platform)
         try
         {
             if (DateTimeOffset.UtcNow < _retryAfter) return null;
-            var account = CatalogAccount.For(platform);
-            var userToken = (requireAccount || preferAccount) && account != null
-                ? await account.GetTokenAsync(cancellationToken).ConfigureAwait(false) : null;
+            var userToken = requireAccount || preferAccount
+                ? await Account.GetTokenAsync(cancellationToken).ConfigureAwait(false) : null;
             if (requireAccount && userToken == null) return null;
             try { return await FetchCatalogAsync(next?.AbsoluteUri ?? url, cancellationToken, userToken).ConfigureAwait(false); }
             catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized && userToken != null)
             {
-                account?.ForgetToken(userToken);
+                Account.ForgetToken(userToken);
                 return null;
             }
         }
@@ -305,13 +350,13 @@ internal sealed class TrackCatalog(TrackPlatform platform)
             {
                 ["grant_type"] = "refresh_token",
                 ["refresh_token"] = refreshToken,
-                ["client_id"] = _clientId!,
-                ["client_secret"] = _clientSecret!,
+                ["client_id"] = ClientId!,
+                ["client_secret"] = ClientSecret!,
             });
         }
         else
         {
-            var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{_clientId}:{_clientSecret}"));
+            var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{ClientId}:{ClientSecret}"));
             request.Headers.Authorization = new AuthenticationHeaderValue("Basic", credentials);
             request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
             {

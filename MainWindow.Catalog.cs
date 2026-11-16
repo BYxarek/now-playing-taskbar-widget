@@ -8,6 +8,7 @@ namespace SpotifyTaskbarWidget;
 public partial class MainWindow
 {
     private TrackPlatform _browsePlatform;
+    private CatalogAccount? _browseAccount;
     private bool _libraryConnected;
     private string? _libraryLanguage;
     private int _libraryVersion;
@@ -23,10 +24,11 @@ public partial class MainWindow
         LibraryMenu.Header = L.MyLibrary;
         CatalogSearchMenu.Visibility = LibraryMenu.Visibility = account == null ? Visibility.Collapsed : Visibility.Visible;
 
-        bool platformChanged = platform != _browsePlatform;
+        bool platformChanged = platform != _browsePlatform || account != _browseAccount;
         if (platformChanged)
         {
             _browsePlatform = platform;
+            _browseAccount = account;
             ++_searchVersion;
             ResetSearchResults();
             CatalogQuery.Clear();
@@ -57,6 +59,61 @@ public partial class MainWindow
         AddPagedSubmenu(playlists, platform, (next, token) => catalog.BrowsePlaylistsAsync(null, next, token),
             playlist => BuildPlaylistMenu(playlist, catalog, platform), L.BrowseFailed, () => version == _libraryVersion);
         LibraryMenu.Items.Add(playlists);
+    }
+
+    private bool PromptForCatalogCredentials(TrackPlatform platform, TrackCatalog catalog)
+    {
+        var id = new TextBox { Text = catalog.ClientId ?? "", MaxLength = 512 };
+        var secret = new PasswordBox { Password = catalog.ClientSecret ?? "", MaxLength = 512 };
+        var redirect = new TextBox { Text = catalog.Account.RedirectUri, IsReadOnly = true };
+        var error = new TextBlock { Text = L.CatalogSaveFailed, TextWrapping = TextWrapping.Wrap, Visibility = Visibility.Collapsed };
+        var save = new Button { Content = L.Save, MinWidth = 90, IsDefault = true, Margin = new Thickness(0, 0, 8, 0) };
+        var cancel = new Button { Content = L.Cancel, MinWidth = 90, IsCancel = true };
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 16, 0, 0),
+        };
+        buttons.Children.Add(save);
+        buttons.Children.Add(cancel);
+
+        var panel = new StackPanel { Margin = new Thickness(16) };
+        panel.Children.Add(new TextBlock { Text = L.CatalogSetupHint(platform.ToString()), TextWrapping = TextWrapping.Wrap });
+        foreach (var (caption, field) in new (string, Control)[]
+            { ("Client ID", id), ("Client Secret", secret), ("Redirect URI", redirect) })
+        {
+            var label = new Label { Content = caption, Target = field, Padding = new Thickness(0), Margin = new Thickness(0, 10, 0, 3) };
+            AutomationProperties.SetLabeledBy(field, label);
+            panel.Children.Add(label);
+            panel.Children.Add(field);
+        }
+        panel.Children.Add(error);
+        panel.Children.Add(buttons);
+
+        var dialog = new Window
+        {
+            Title = L.CatalogSetupTitle(platform.ToString()), Content = panel, Width = 380,
+            SizeToContent = SizeToContent.Height, ResizeMode = ResizeMode.NoResize,
+            WindowStyle = WindowStyle.ToolWindow, WindowStartupLocation = WindowStartupLocation.CenterScreen,
+            ShowInTaskbar = false, Topmost = true,
+        };
+        void Validate()
+        {
+            save.IsEnabled = !string.IsNullOrWhiteSpace(id.Text) && !string.IsNullOrWhiteSpace(secret.Password);
+            error.Visibility = Visibility.Collapsed;
+        }
+        id.TextChanged += (_, _) => Validate();
+        secret.PasswordChanged += (_, _) => Validate();
+        dialog.Loaded += (_, _) => { id.Focus(); id.SelectAll(); };
+        save.Click += (_, _) =>
+        {
+            if (catalog.TrySaveCredentials(id.Text.Trim(), secret.Password.Trim()))
+                dialog.DialogResult = true;
+            else
+                error.Visibility = Visibility.Visible;
+        };
+        Validate();
+        return dialog.ShowDialog() == true;
     }
 
     private void ResetSearchResults()

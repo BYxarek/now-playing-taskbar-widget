@@ -195,10 +195,16 @@ internal static class Interop
         public UIntPtr dwExtraInfo;
     }
 
-    public delegate IntPtr LowLevelKeyboardProc(int nCode, IntPtr wParam, IntPtr lParam);
+    public const int WH_MOUSE_LL = 14;
+    public const int WM_LBUTTONDOWN = 0x0201;
+    public const int WM_RBUTTONDOWN = 0x0204;
+    public const int WM_MBUTTONDOWN = 0x0207;
+    public const int WM_XBUTTONDOWN = 0x020B;
+
+    public delegate IntPtr LowLevelHookProc(int nCode, IntPtr wParam, IntPtr lParam);
 
     [DllImport("user32.dll")]
-    public static extern IntPtr SetWindowsHookEx(int idHook, LowLevelKeyboardProc callback,
+    public static extern IntPtr SetWindowsHookEx(int idHook, LowLevelHookProc callback,
         IntPtr module, uint threadId);
 
     [DllImport("user32.dll")]
